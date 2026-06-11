@@ -47,6 +47,12 @@ export default function RootLayout({
                   Players
                 </Link>
                 <Link
+                  href="/earnings"
+                  className="text-sm font-medium text-muted-foreground hover:text-white transition-colors duration-200"
+                >
+                  Earnings
+                </Link>
+                <Link
                   href="/tournaments/create"
                   className="inline-flex items-center justify-center rounded-lg bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary hover:text-background transition-all duration-200 shadow-sm border border-primary/20 hover:border-transparent hover:shadow-[0_0_15px_rgba(16,185,129,0.35)]"
                 >
