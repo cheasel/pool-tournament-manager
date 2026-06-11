@@ -577,7 +577,7 @@ export default function TournamentDetailPage() {
 
       {tournament.status === 'draft' && tournament.hasCalcutta ? (
         /* Main Calcutta Auction Screen Layout */
-        <div className="w-full space-y-6">
+        <div className="w-full space-y-6 lg:-mx-6 xl:-mx-8 lg:w-auto">
           {/* Header row (Logo, title, date) */}
           <div className="text-center space-y-2 py-4 border-b border-border/40 relative overflow-hidden bg-slate-950/20 rounded-2xl p-6 shadow-md">
             <div className="inline-flex items-center justify-center gap-3">
@@ -716,7 +716,7 @@ export default function TournamentDetailPage() {
                 return (
                   <div className="grid gap-2.5 xl:gap-4 lg:grid-cols-4 animate-fade-in">
                     {/* Left Column: Roster Table Part 1 (1 to half) */}
-                    <div className="lg:col-span-1 glass-panel px-1.5 py-3 xl:p-3 rounded-2xl flex flex-col h-fit overflow-hidden">
+                    <div className="lg:col-span-1 glass-panel px-2.5 py-3 xl:p-3 rounded-2xl flex flex-col h-fit overflow-hidden">
                       <h3 className="text-xs font-black text-primary border-b border-border/40 pb-2 mb-3 tracking-wider uppercase text-center flex items-center justify-center gap-1.5 shrink-0">
                         <Users className="h-3.5 w-3.5 text-primary" />
                         Roster (1-{half})
@@ -1103,7 +1103,7 @@ export default function TournamentDetailPage() {
                     </div>
 
                     {/* Right Column: Roster Table Part 2 (half + 1 to end) */}
-                    <div className="lg:col-span-1 glass-panel px-1.5 py-3 xl:p-3 rounded-2xl flex flex-col h-fit overflow-hidden">
+                    <div className="lg:col-span-1 glass-panel px-2.5 py-3 xl:p-3 rounded-2xl flex flex-col h-fit overflow-hidden">
                       <h3 className="text-xs font-black text-primary border-b border-border/40 pb-2 mb-3 tracking-wider uppercase text-center flex items-center justify-center gap-1.5 shrink-0">
                         <Users className="h-3.5 w-3.5 text-primary" />
                         Roster ({half + 1}-{realPlayers.length})
