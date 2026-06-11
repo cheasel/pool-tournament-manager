@@ -209,7 +209,7 @@ export default function CreateTournamentPage() {
             {/* Entry Fee */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                Entry Price ($)
+                Entry Price (฿)
               </label>
               <input
                 type="number"
@@ -267,7 +267,7 @@ export default function CreateTournamentPage() {
                       <span className="text-muted-foreground/60 font-medium">%</span>
                       {entryFee > 0 && selectedIds.length > 0 && (
                         <span className="ml-auto font-black text-emerald-400 text-[11px]">
-                          ${estAmount.toFixed(0)}
+                          ฿{estAmount.toFixed(0)}
                         </span>
                       )}
                     </div>
@@ -309,7 +309,7 @@ export default function CreateTournamentPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                      Min Start Bet ($)
+                      Min Start Bet (฿)
                     </label>
                     <input
                       type="number"
@@ -321,7 +321,7 @@ export default function CreateTournamentPage() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                      Bid Increment ($)
+                      Bid Increment (฿)
                     </label>
                     <input
                       type="number"

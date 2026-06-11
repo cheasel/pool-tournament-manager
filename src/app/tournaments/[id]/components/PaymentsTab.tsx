@@ -161,7 +161,7 @@ export default function PaymentsTab({
                   return (
                     <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
                       <td className="py-4 px-6 text-sm text-white font-black">{p.name}</td>
-                      <td className="py-4 px-6 text-right text-slate-300">${tournament.entryFee || 0}</td>
+                      <td className="py-4 px-6 text-right text-slate-300">฿{tournament.entryFee || 0}</td>
                       <td className="py-4 px-6 text-center">
                         <label className="inline-flex items-center justify-center cursor-pointer select-none">
                           <input
@@ -261,10 +261,10 @@ export default function PaymentsTab({
                   {consolidatedList.map(item => (
                     <tr key={item.name} className="hover:bg-slate-800/20 transition-colors">
                       <td className="py-4 px-6 text-sm text-white font-black">{item.name}</td>
-                      <td className="py-4 px-6 text-right text-slate-300">${item.expected.toFixed(0)}</td>
-                      <td className="py-4 px-6 text-right text-emerald-400">${item.paid.toFixed(0)}</td>
+                      <td className="py-4 px-6 text-right text-slate-300">฿{item.expected.toFixed(0)}</td>
+                      <td className="py-4 px-6 text-right text-emerald-400">฿{item.paid.toFixed(0)}</td>
                       <td className={`py-4 px-6 text-right ${item.remaining > 0 ? 'text-primary' : 'text-slate-400'}`}>
-                        ${item.remaining.toFixed(0)}
+                        ฿{item.remaining.toFixed(0)}
                       </td>
                       <td className="py-4 px-6 text-center">
                         <label className="inline-flex items-center justify-center cursor-pointer select-none">
@@ -313,7 +313,7 @@ export default function PaymentsTab({
                           {row.rank === 1 ? '1st' : row.rank === 2 ? '2nd' : `${row.rank}th`}
                         </td>
                         <td className="py-4 px-6 text-sm text-white font-black">{row.playerName}</td>
-                        <td className="py-4 px-6 text-right text-emerald-400">${row.playerPayout.toFixed(0)}</td>
+                        <td className="py-4 px-6 text-right text-emerald-400">฿{row.playerPayout.toFixed(0)}</td>
                         <td className="py-4 px-6 text-center">
                           <label className="inline-flex items-center justify-center cursor-pointer select-none">
                             <input
@@ -389,7 +389,7 @@ export default function PaymentsTab({
                       <td className="py-4 px-6 text-sm text-white font-black">{row.playerName}</td>
                       <td className="py-4 px-6 text-slate-200">{row.recipientName}</td>
                       <td className="py-4 px-6 text-muted-foreground">{row.type}</td>
-                      <td className="py-4 px-6 text-right text-emerald-400">${row.amount.toFixed(0)}</td>
+                      <td className="py-4 px-6 text-right text-emerald-400">฿{row.amount.toFixed(0)}</td>
                       <td className="py-4 px-6 text-center">
                         <label className="inline-flex items-center justify-center cursor-pointer select-none">
                           <input

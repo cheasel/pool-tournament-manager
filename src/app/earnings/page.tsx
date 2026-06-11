@@ -13,7 +13,6 @@ import {
   Trophy,
   Coins,
   Search,
-  DollarSign,
   TrendingUp,
   User,
   Users,
@@ -109,11 +108,10 @@ export default function EarningsPage() {
 
   // Helper to format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    const formatted = new Intl.NumberFormat('en-US', {
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(Math.abs(amount));
+    return `${amount < 0 ? '-' : ''}฿${formatted}`;
   };
 
   return (
@@ -140,7 +138,7 @@ export default function EarningsPage() {
             {/* Total Paid Out */}
             <div className="glass-panel rounded-2xl p-5 shadow-xl flex items-center gap-4 border border-border/60">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-                <DollarSign className="h-6 w-6" />
+                <Coins className="h-6 w-6" />
               </div>
               <div>
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Pools Paid Out</p>

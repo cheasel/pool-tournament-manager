@@ -27,11 +27,11 @@ export default function EarningsTab({ details, tournament }: EarningsTabProps) {
           <div className="grid grid-cols-2 gap-3 bg-slate-900/60 p-3 rounded-xl border border-border/40 text-xs">
             <div>
               <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Entry Fee</p>
-              <p className="text-lg font-black text-white mt-0.5">${entryFee}</p>
+              <p className="text-lg font-black text-white mt-0.5">฿{entryFee}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Total Paid Out</p>
-              <p className="text-lg font-black text-emerald-400 mt-0.5">${totalPrizePool}</p>
+              <p className="text-lg font-black text-emerald-400 mt-0.5">฿{totalPrizePool}</p>
             </div>
           </div>
         </div>
@@ -54,7 +54,7 @@ export default function EarningsTab({ details, tournament }: EarningsTabProps) {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Total Paid Out</p>
-                    <p className="text-lg font-black text-emerald-400 mt-0.5">${totalCalcuttaPool}</p>
+                    <p className="text-lg font-black text-emerald-400 mt-0.5">฿{totalCalcuttaPool}</p>
                   </div>
                 </div>
               );
@@ -116,7 +116,7 @@ export default function EarningsTab({ details, tournament }: EarningsTabProps) {
                       </td>
                       <td className="py-4 px-6 text-sm text-white font-black">{row.playerName}</td>
                       <td className="py-4 px-6 text-right text-slate-300">
-                        {row.playerPayout > 0 ? `$${row.playerPayout.toFixed(0)}` : '—'}
+                        {row.playerPayout > 0 ? `฿${row.playerPayout.toFixed(0)}` : '—'}
                       </td>
                       {tournament.hasCalcutta && (
                         <>
@@ -124,7 +124,7 @@ export default function EarningsTab({ details, tournament }: EarningsTabProps) {
                             {row.calcuttaOwner || '—'}
                           </td>
                           <td className="py-4 px-6 text-right text-slate-300">
-                            {row.ownerCalcuttaShare > 0 ? `$${row.ownerCalcuttaShare.toFixed(0)}` : '—'}
+                            {row.ownerCalcuttaShare > 0 ? `฿${row.ownerCalcuttaShare.toFixed(0)}` : '—'}
                           </td>
                           <td className="py-4 px-6 text-center">
                             {row.calcuttaOwner ? (
@@ -142,12 +142,12 @@ export default function EarningsTab({ details, tournament }: EarningsTabProps) {
                         </>
                       )}
                       <td className={`py-4 px-6 text-right ${row.netPlayerEarnings >= 0 ? 'text-primary' : 'text-billiard-red'}`}>
-                        {row.netPlayerEarnings >= 0 ? '+' : ''}${row.netPlayerEarnings.toFixed(0)}
+                        {row.netPlayerEarnings >= 0 ? '+' : ''}฿{row.netPlayerEarnings.toFixed(0)}
                       </td>
                       {tournament.hasCalcutta && (
                         <td className={`py-4 px-6 text-right ${row.netOwnerEarnings >= 0 ? 'text-primary' : 'text-billiard-red'}`}>
                           {row.calcuttaOwner
-                            ? `${row.netOwnerEarnings >= 0 ? '+' : ''}$${row.netOwnerEarnings.toFixed(0)}`
+                            ? `${row.netOwnerEarnings >= 0 ? '+' : ''}฿${row.netOwnerEarnings.toFixed(0)}`
                             : '—'}
                         </td>
                       )}

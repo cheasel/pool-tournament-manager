@@ -123,7 +123,7 @@ export default function TournamentDetailPage() {
         <div className="flex justify-between text-xs font-bold">
           <span className="text-muted-foreground">{label}</span>
           <span className="text-white">
-            ${collected.toFixed(0)} / ${expected.toFixed(0)} ({percent}%)
+            ฿{collected.toFixed(0)} / ฿{expected.toFixed(0)} ({percent}%)
           </span>
         </div>
         <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-border/40">
@@ -697,11 +697,11 @@ export default function TournamentDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Minimum Bid:</span>
-                  <span className="text-white font-bold">${tournament.calcuttaMinStartBet ?? 10}</span>
+                  <span className="text-white font-bold">฿{tournament.calcuttaMinStartBet ?? 10}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Increment:</span>
-                  <span className="text-white font-bold">${tournament.calcuttaMinIncrement ?? 5}</span>
+                  <span className="text-white font-bold">฿{tournament.calcuttaMinIncrement ?? 5}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Roster Size:</span>
@@ -784,7 +784,7 @@ export default function TournamentDetailPage() {
                                   {isSold ? (bid?.buyerName || 'Player') : '-'}
                                 </td>
                                 <td className="py-2 px-0.5 text-right font-black text-emerald-400">
-                                  {isSold ? `$${bid?.bidAmount || 0}` : '-'}
+                                  {isSold ? `฿{bid?.bidAmount || 0}` : '-'}
                                 </td>
                                 <td className="py-2 px-0.5 text-center font-extrabold text-slate-400">
                                   {isSold ? (bid?.split ? 'YES' : 'NO') : '-'}
@@ -828,11 +828,11 @@ export default function TournamentDetailPage() {
                           <div className="grid grid-cols-2 gap-4">
                             <div className="bg-slate-900/60 p-3 rounded-xl border border-border/15 text-center space-y-0.5">
                               <span className="block text-[10px] uppercase font-bold text-muted-foreground">Min Start BID</span>
-                              <span className="text-lg font-black text-primary">${tournament.calcuttaMinStartBet ?? 10}</span>
+                              <span className="text-lg font-black text-primary">฿{tournament.calcuttaMinStartBet ?? 10}</span>
                             </div>
                             <div className="bg-slate-900/60 p-3 rounded-xl border border-border/15 text-center space-y-0.5">
                               <span className="block text-[10px] uppercase font-bold text-muted-foreground">Increment</span>
-                              <span className="text-lg font-black text-primary">${tournament.calcuttaMinIncrement ?? 5}</span>
+                              <span className="text-lg font-black text-primary">฿{tournament.calcuttaMinIncrement ?? 5}</span>
                             </div>
                           </div>
 
@@ -847,7 +847,7 @@ export default function TournamentDetailPage() {
                                   Auction Prize
                                 </h4>
                                 <span className="text-[10px] text-emerald-400 font-extrabold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                  Total: ${totalCalcuttaPool}
+                                  Total: ฿{totalCalcuttaPool}
                                 </span>
                               </div>
                               <div className="space-y-1.5">
@@ -862,7 +862,7 @@ export default function TournamentDetailPage() {
                                         <span className="text-[9px] font-extrabold text-muted-foreground bg-slate-800 px-1 rounded flex items-center">{pct}%</span>
                                         <span className="text-slate-300 font-semibold">{label}</span>
                                       </div>
-                                      <span className="font-black text-emerald-400">${amt.toFixed(0)}</span>
+                                      <span className="font-black text-emerald-400">฿{amt.toFixed(0)}</span>
                                     </div>
                                   );
                                 })}
@@ -877,7 +877,7 @@ export default function TournamentDetailPage() {
                                   Tournament Prize
                                 </h4>
                                 <span className="text-[10px] text-emerald-400 font-extrabold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                  Total: ${totalPlayersPool}
+                                  Total: ฿{totalPlayersPool}
                                 </span>
                               </div>
                               <div className="space-y-1.5">
@@ -892,7 +892,7 @@ export default function TournamentDetailPage() {
                                         <span className="text-[9px] font-extrabold text-muted-foreground bg-slate-800 px-1 rounded flex items-center">{pct}%</span>
                                         <span className="text-slate-300 font-semibold">{label}</span>
                                       </div>
-                                      <span className="font-black text-emerald-400">${amt.toFixed(0)}</span>
+                                      <span className="font-black text-emerald-400">฿{amt.toFixed(0)}</span>
                                     </div>
                                   );
                                 })}
@@ -961,7 +961,7 @@ export default function TournamentDetailPage() {
                               {/* Winning Bid */}
                               <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                                  Winning Bid ($)
+                                  Winning Bid (฿)
                                 </label>
                                 <div className="flex items-center bg-background border border-border/40 rounded-lg px-2 py-0.5">
                                   <button
@@ -1040,7 +1040,7 @@ export default function TournamentDetailPage() {
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground block text-[8px] uppercase">BID Amount</span>
-                                      <span className="text-emerald-400 font-black">${lastBid.bidAmount}</span>
+                                      <span className="text-emerald-400 font-black">฿{lastBid.bidAmount}</span>
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground block text-[8px] uppercase">Split</span>
@@ -1088,7 +1088,7 @@ export default function TournamentDetailPage() {
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1 bg-background border border-border/40 rounded px-1.5 py-0.5 shrink-0">
-                                        <span className="text-[9px] font-medium text-muted-foreground/60">$</span>
+                                        <span className="text-[9px] font-medium text-muted-foreground/60">฿</span>
                                         <input
                                           type="number"
                                           value={bid.bidAmount}
@@ -1163,7 +1163,7 @@ export default function TournamentDetailPage() {
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-1 bg-background border border-border/40 rounded px-1.5 py-0.5 shrink-0">
-                                      <span className="text-[9px] font-medium text-muted-foreground/60">$</span>
+                                      <span className="text-[9px] font-medium text-muted-foreground/60">฿</span>
                                       <input
                                         type="number"
                                         value={bid.bidAmount}
@@ -1185,11 +1185,11 @@ export default function TournamentDetailPage() {
                             <div className="grid gap-4 md:grid-cols-2">
                               <div className="bg-slate-900/60 p-4 rounded-xl border border-border/15 text-center space-y-1">
                                 <p className="text-[9px] uppercase font-bold text-muted-foreground">Total Calcutta Pool</p>
-                                <p className="text-3xl font-black text-emerald-400">${totalCalcuttaPool}</p>
+                                <p className="text-3xl font-black text-emerald-400">฿{totalCalcuttaPool}</p>
                               </div>
                               <div className="bg-slate-900/60 p-4 rounded-xl border border-border/15 text-center space-y-1">
                                 <p className="text-[9px] uppercase font-bold text-muted-foreground">Players Entry Pool</p>
-                                <p className="text-3xl font-black text-primary">${totalPlayersPool}</p>
+                                <p className="text-3xl font-black text-primary">฿{totalPlayersPool}</p>
                               </div>
                             </div>
 
@@ -1473,12 +1473,12 @@ export default function TournamentDetailPage() {
                           {/* Payout Summary numbers */}
                           <div className="grid grid-cols-2 gap-3 bg-slate-900/60 p-3 rounded-xl border border-border/40 text-xs">
                             <div>
-                              <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Entry Price</p>
-                              <p className="text-base font-black text-white mt-0.5">${entryFee}</p>
+                              <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider font-bold">Entry Price</p>
+                              <p className="text-base font-black text-white mt-0.5">฿{entryFee}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider">Total Prize Pool</p>
-                              <p className="text-base font-black text-emerald-400 mt-0.5">${totalPrizePool}</p>
+                              <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider font-bold">Total Prize Pool</p>
+                              <p className="text-base font-black text-emerald-400 mt-0.5">฿{totalPrizePool}</p>
                             </div>
                           </div>
 
@@ -1492,7 +1492,7 @@ export default function TournamentDetailPage() {
                                   <span className="text-slate-200">{label}</span>
                                   <div className="flex items-center gap-3">
                                     <span className="text-[10px] font-extrabold text-muted-foreground bg-slate-800 px-1.5 py-0.5 rounded">{pct}%</span>
-                                    <span className="font-black text-emerald-400 text-sm">${amount.toFixed(0)}</span>
+                                    <span className="font-black text-emerald-400 text-sm">฿{amount.toFixed(0)}</span>
                                   </div>
                                 </div>
                               );
@@ -1525,12 +1525,12 @@ export default function TournamentDetailPage() {
                                   <div>
                                     <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider font-bold">Min Start Bet / Inc</p>
                                     <p className="text-sm font-black text-white mt-0.5">
-                                      ${tournament.calcuttaMinStartBet ?? 10} / ${tournament.calcuttaMinIncrement ?? 5}
+                                      ฿{tournament.calcuttaMinStartBet ?? 10} / ฿{tournament.calcuttaMinIncrement ?? 5}
                                     </p>
                                   </div>
                                   <div>
                                     <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-wider font-bold">Calcutta Prize Pool</p>
-                                    <p className="text-sm font-black text-emerald-400 mt-0.5">${totalPool}</p>
+                                    <p className="text-sm font-black text-emerald-400 mt-0.5">฿{totalPool}</p>
                                   </div>
                                 </div>
 
@@ -1545,7 +1545,7 @@ export default function TournamentDetailPage() {
                                         <span className="text-slate-200">{label}</span>
                                         <div className="flex items-center gap-3">
                                           <span className="text-[9px] font-extrabold text-muted-foreground bg-slate-800 px-1.5 py-0.5 rounded">{pct}%</span>
-                                          <span className="font-black text-emerald-400">${amt.toFixed(0)}</span>
+                                          <span className="font-black text-emerald-400">฿{amt.toFixed(0)}</span>
                                         </div>
                                       </div>
                                     );
@@ -1563,7 +1563,7 @@ export default function TournamentDetailPage() {
                                             <p className="font-bold text-white truncate">{getPlayer(bid.playerId).name}</p>
                                             <p className="text-[9px] text-muted-foreground truncate">Owner: {bid.buyerName}</p>
                                           </div>
-                                          <span className="font-extrabold text-white shrink-0">${bid.bidAmount}</span>
+                                          <span className="font-extrabold text-white shrink-0">฿{bid.bidAmount}</span>
                                         </div>
                                       ))}
                                     </div>
