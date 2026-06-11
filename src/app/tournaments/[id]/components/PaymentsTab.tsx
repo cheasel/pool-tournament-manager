@@ -30,9 +30,21 @@ export default function PaymentsTab({
 
   const bids = tournament.calcuttaBids || [];
   const expectedCalcuttaPool = bids.reduce((sum, b) => sum + b.bidAmount, 0);
-  const collectedCalcuttaPool = bids
-    .filter(b => (tournament.calcuttaBidsPaidIds || []).includes(b.playerId))
-    .reduce((sum, b) => sum + b.bidAmount, 0);
+  const collectedCalcuttaPool = bids.reduce((sum, b) => {
+    const isPlayerPaid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId);
+    const isBuyerPaid = b.split
+      ? (tournament.calcuttaBidsPaidIds || []).includes(b.playerId + '-buyer')
+      : isPlayerPaid;
+
+    if (b.split) {
+      let portion = 0;
+      if (isPlayerPaid) portion += 0.5 * b.bidAmount;
+      if (isBuyerPaid) portion += 0.5 * b.bidAmount;
+      return sum + portion;
+    } else {
+      return sum + (isBuyerPaid ? b.bidAmount : 0);
+    }
+  }, 0);
 
   // Compute expected payouts
   const earnings = calculateTournamentEarnings(details);
@@ -169,49 +181,61 @@ export default function PaymentsTab({
         )}
 
         {paymentCategory === 'calcuttaBid' && tournament.hasCalcutta && (() => {
-          const personMap: Record<string, { expected: number; paid: number; associatedPlayerIds: string[] }> = {};
+          const personMap: Record<string, { expected: number; paid: number; associatedTargets: { targetId: string; portion: number; isPaid: boolean }[] }> = {};
           
           (tournament.calcuttaBids || []).forEach(bid => {
             const pName = players.find(p => p.id === bid.playerId)?.name || 'Unknown';
             const buyerName = bid.buyerName.trim() || 'Player (Self)';
             const resolvedBuyer = buyerName === 'Player (Self)' ? pName : buyerName;
-            const isPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
             
             if (bid.split) {
               const halfAmount = bid.bidAmount / 2;
               
-              if (!personMap[pName]) personMap[pName] = { expected: 0, paid: 0, associatedPlayerIds: [] };
+              // Player portion
+              const isPlayerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
+              if (!personMap[pName]) personMap[pName] = { expected: 0, paid: 0, associatedTargets: [] };
               personMap[pName].expected += halfAmount;
-              if (isPaid) personMap[pName].paid += halfAmount;
-              if (!personMap[pName].associatedPlayerIds.includes(bid.playerId)) {
-                personMap[pName].associatedPlayerIds.push(bid.playerId);
-              }
+              if (isPlayerPaid) personMap[pName].paid += halfAmount;
+              personMap[pName].associatedTargets.push({
+                targetId: bid.playerId,
+                portion: halfAmount,
+                isPaid: isPlayerPaid,
+              });
               
-              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedPlayerIds: [] };
+              // Buyer portion
+              const isBuyerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId + '-buyer');
+              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
               personMap[resolvedBuyer].expected += halfAmount;
-              if (isPaid) personMap[resolvedBuyer].paid += halfAmount;
-              if (!personMap[resolvedBuyer].associatedPlayerIds.includes(bid.playerId)) {
-                personMap[resolvedBuyer].associatedPlayerIds.push(bid.playerId);
-              }
+              if (isBuyerPaid) personMap[resolvedBuyer].paid += halfAmount;
+              personMap[resolvedBuyer].associatedTargets.push({
+                targetId: bid.playerId + '-buyer',
+                portion: halfAmount,
+                isPaid: isBuyerPaid,
+              });
             } else {
-              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedPlayerIds: [] };
+              // Buyer portion (100%)
+              const isBuyerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
+              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
               personMap[resolvedBuyer].expected += bid.bidAmount;
-              if (isPaid) personMap[resolvedBuyer].paid += bid.bidAmount;
-              if (!personMap[resolvedBuyer].associatedPlayerIds.includes(bid.playerId)) {
-                personMap[resolvedBuyer].associatedPlayerIds.push(bid.playerId);
-              }
+              if (isBuyerPaid) personMap[resolvedBuyer].paid += bid.bidAmount;
+              personMap[resolvedBuyer].associatedTargets.push({
+                targetId: bid.playerId,
+                portion: bid.bidAmount,
+                isPaid: isBuyerPaid,
+              });
             }
           });
 
           const consolidatedList = Object.entries(personMap).map(([name, val]) => {
             const remaining = val.expected - val.paid;
-            const isAllPaid = val.associatedPlayerIds.every(id => (tournament.calcuttaBidsPaidIds || []).includes(id));
+            const isAllPaid = val.associatedTargets.every(t => t.isPaid);
+            const targetIds = val.associatedTargets.map(t => t.targetId);
             return {
               name,
               expected: val.expected,
               paid: val.paid,
               remaining,
-              associatedPlayerIds: val.associatedPlayerIds,
+              targetIds,
               isAllPaid,
             };
           }).sort((a, b) => {
@@ -247,7 +271,7 @@ export default function PaymentsTab({
                           <input
                             type="checkbox"
                             checked={item.isAllPaid}
-                            onChange={() => onTogglePayment('calcuttaBid', item.associatedPlayerIds, item.isAllPaid ? 'unpaid' : 'paid')}
+                            onChange={() => onTogglePayment('calcuttaBid', item.targetIds, item.isAllPaid ? 'unpaid' : 'paid')}
                             className="rounded accent-primary bg-background border-border h-4 w-4"
                           />
                         </label>
