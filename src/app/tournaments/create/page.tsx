@@ -4,7 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Player, GameType } from '@/types';
 import { getDatabaseAdapter } from '@/lib/db';
-import { Trophy, Users, CheckSquare, Square, ChevronRight, Info } from 'lucide-react';
+import { Trophy, Users, CheckSquare, Square, ChevronRight, Info, Coins } from 'lucide-react';
+
+const PAYOUT_PRESETS: Record<number, number[]> = {
+  2: [70, 30],
+  3: [50, 30, 20],
+  4: [40, 30, 20, 10],
+  5: [35, 25, 20, 12, 8],
+  6: [30, 22, 18, 14, 10, 6],
+  7: [28, 20, 16, 13, 10, 8, 5],
+  8: [25, 18, 15, 12, 10, 8, 7, 5],
+};
 
 export default function CreateTournamentPage() {
   const router = useRouter();
@@ -15,6 +25,16 @@ export default function CreateTournamentPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const [entryFee, setEntryFee] = useState<number>(0);
+  const [payoutPositions, setPayoutPositions] = useState<number>(3);
+  const [payoutPercentages, setPayoutPercentages] = useState<number[]>([50, 30, 20]);
+
+  const [hasCalcutta, setHasCalcutta] = useState<boolean>(false);
+  const [calcuttaMinStartBet, setCalcuttaMinStartBet] = useState<number>(10);
+  const [calcuttaMinIncrement, setCalcuttaMinIncrement] = useState<number>(5);
+  const [calcuttaPayoutPositions, setCalcuttaPayoutPositions] = useState<number>(3);
+  const [calcuttaPayoutPercentages, setCalcuttaPayoutPercentages] = useState<number[]>([50, 30, 20]);
 
   const db = getDatabaseAdapter();
 
@@ -49,6 +69,36 @@ export default function CreateTournamentPage() {
     setSelectedIds([]);
   };
 
+  const handlePayoutPositionsChange = (num: number) => {
+    setPayoutPositions(num);
+    setPayoutPercentages(PAYOUT_PRESETS[num] || Array(num).fill(Math.floor(100 / num)));
+  };
+
+  const handlePercentageChange = (index: number, val: number) => {
+    setPayoutPercentages(prev => {
+      const copy = [...prev];
+      copy[index] = val;
+      return copy;
+    });
+  };
+
+  const handleCalcuttaPayoutPositionsChange = (num: number) => {
+    setCalcuttaPayoutPositions(num);
+    setCalcuttaPayoutPercentages(PAYOUT_PRESETS[num] || Array(num).fill(Math.floor(100 / num)));
+  };
+
+  const handleCalcuttaPercentageChange = (index: number, val: number) => {
+    setCalcuttaPayoutPercentages(prev => {
+      const copy = [...prev];
+      copy[index] = val;
+      return copy;
+    });
+  };
+
+  const percentageSum = payoutPercentages.reduce((a, b) => a + b, 0);
+  const calcuttaPercentageSum = calcuttaPayoutPercentages.reduce((a, b) => a + b, 0);
+  const totalPrizePool = entryFee * selectedIds.length;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -61,10 +111,28 @@ export default function CreateTournamentPage() {
       setError('Please select at least 2 players to start a tournament');
       return;
     }
+    if (percentageSum !== 100) {
+      setError('Prize money payout percentages must sum to exactly 100%');
+      return;
+    }
+    if (hasCalcutta && calcuttaPercentageSum !== 100) {
+      setError('Calcutta payout percentages must sum to exactly 100%');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const tournament = await db.createTournament(name.trim(), gameType, selectedIds);
+      const tournament = await db.createTournament(
+        name.trim(),
+        gameType,
+        selectedIds,
+        entryFee,
+        payoutPercentages,
+        hasCalcutta,
+        calcuttaMinStartBet,
+        calcuttaMinIncrement,
+        hasCalcutta ? calcuttaPayoutPercentages : undefined
+      );
       router.push(`/tournaments/${tournament.id}`);
     } catch (err) {
       console.error(err);
@@ -137,6 +205,188 @@ export default function CreateTournamentPage() {
               </div>
             </div>
 
+            {/* Entry Fee */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Entry Price ($)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={entryFee === 0 ? '' : entryFee}
+                onChange={e => setEntryFee(Math.max(0, parseInt(e.target.value) || 0))}
+                placeholder="e.g. 50 (Optional)"
+                className="w-full rounded-lg bg-background border border-border px-4 py-2 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors font-bold"
+              />
+            </div>
+
+            {/* Payout Positions Selection */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Paid Positions (2-8)
+              </label>
+              <div className="flex items-center gap-1 justify-between bg-background p-1 border border-border rounded-lg">
+                {[2, 3, 4, 5, 6, 7, 8].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => handlePayoutPositionsChange(num)}
+                    className={`h-7 w-7 rounded font-extrabold text-[10px] cursor-pointer transition-all flex items-center justify-center ${
+                      payoutPositions === num
+                        ? 'bg-primary text-background'
+                        : 'text-muted-foreground hover:text-white hover:bg-border/30'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payout Percentages Config */}
+            <div className="space-y-2.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Payout Splits (%)
+              </label>
+              <div className="space-y-2 bg-background/40 border border-border/40 p-3 rounded-lg">
+                {payoutPercentages.map((pct, idx) => {
+                  const label = idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : `${idx + 1}th`;
+                  const estAmount = (totalPrizePool * pct) / 100;
+                  return (
+                    <div key={idx} className="flex items-center gap-2 text-xs">
+                      <span className="w-8 font-bold text-muted-foreground">{label}:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={pct}
+                        onChange={e => handlePercentageChange(idx, Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                        className="w-14 rounded bg-background border border-border/60 px-2 py-1 text-center font-black text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                      <span className="text-muted-foreground/60 font-medium">%</span>
+                      {entryFee > 0 && selectedIds.length > 0 && (
+                        <span className="ml-auto font-black text-emerald-400 text-[11px]">
+                          ${estAmount.toFixed(0)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between items-center border-t border-border/40 pt-2 mt-1 text-[11px]">
+                  <span className="font-bold text-muted-foreground">Total:</span>
+                  <span className={`font-black ${percentageSum === 100 ? 'text-primary' : 'text-billiard-red'}`}>
+                    {percentageSum}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Calcutta Setup Checkbox */}
+            <div className="pt-2 border-t border-border/40">
+              <label className="flex items-start gap-3 text-xs font-semibold text-white select-none cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={hasCalcutta}
+                  onChange={e => setHasCalcutta(e.target.checked)}
+                  className="rounded accent-primary bg-background border-border mt-0.5 cursor-pointer h-4 w-4"
+                />
+                <div>
+                  <span className="font-bold text-white group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <Coins className="h-4 w-4 text-primary" />
+                    Enable Calcutta Betting
+                  </span>
+                  <p className="text-[10px] text-muted-foreground font-normal mt-0.5">
+                    Players can be auctioned to bets. Configure start bets and increment.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Calcutta Settings Expandable Panel */}
+            {hasCalcutta && (
+              <div className="space-y-4 pt-3 border-t border-border/30 animate-fade-in">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Min Start Bet ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={calcuttaMinStartBet === 0 ? '' : calcuttaMinStartBet}
+                      onChange={e => setCalcuttaMinStartBet(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full rounded-lg bg-background border border-border px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary transition-colors font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Bid Increment ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={calcuttaMinIncrement === 0 ? '' : calcuttaMinIncrement}
+                      onChange={e => setCalcuttaMinIncrement(Math.max(1, parseInt(e.target.value) || 0))}
+                      className="w-full rounded-lg bg-background border border-border px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary transition-colors font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Calcutta Paid Positions (2-8)
+                  </label>
+                  <div className="flex items-center gap-1 justify-between bg-background p-1 border border-border rounded-lg">
+                    {[2, 3, 4, 5, 6, 7, 8].map(num => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => handleCalcuttaPayoutPositionsChange(num)}
+                        className={`h-6 w-6 rounded font-extrabold text-[9px] cursor-pointer transition-all flex items-center justify-center ${
+                          calcuttaPayoutPositions === num
+                            ? 'bg-primary text-background'
+                            : 'text-muted-foreground hover:text-white hover:bg-border/30'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Calcutta Splits (%)
+                  </label>
+                  <div className="space-y-2 bg-background/40 border border-border/40 p-3 rounded-lg">
+                    {calcuttaPayoutPercentages.map((pct, idx) => {
+                      const label = idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : `${idx + 1}th`;
+                      return (
+                        <div key={idx} className="flex items-center gap-2 text-xs">
+                          <span className="w-8 font-bold text-muted-foreground">{label}:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={pct}
+                            onChange={e => handleCalcuttaPercentageChange(idx, Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                            className="w-12 rounded bg-background border border-border/60 px-2 py-0.5 text-center font-bold text-white focus:outline-none focus:border-primary"
+                          />
+                          <span className="text-muted-foreground/60 font-medium">%</span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex justify-between items-center border-t border-border/40 pt-2 mt-1 text-[10px]">
+                      <span className="font-bold text-muted-foreground">Total:</span>
+                      <span className={`font-black ${calcuttaPercentageSum === 100 ? 'text-primary' : 'text-billiard-red'}`}>
+                        {calcuttaPercentageSum}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Summary Information */}
             <div className="rounded-lg bg-card border border-border p-4 space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
@@ -187,8 +437,8 @@ export default function CreateTournamentPage() {
 
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-primary py-3 text-sm font-bold text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+              disabled={submitting || percentageSum !== 100 || (hasCalcutta && calcuttaPercentageSum !== 100)}
+              className="w-full rounded-lg bg-primary py-3 text-sm font-bold text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Generating Bracket...' : 'Create & Launch'}
               <ChevronRight className="h-4 w-4" />

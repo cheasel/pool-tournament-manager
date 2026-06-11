@@ -7,6 +7,7 @@ import {
   getGroupQualifiers,
   seedSingleElimination,
 } from '../bracket';
+import { getDatabaseAdapter } from '../db';
 
 describe('Handicap Logic Tests', () => {
   const p7: Player = {
@@ -96,14 +97,14 @@ describe('Bracket Engine Tests', () => {
     const matches = initializeGroupMatches('t1', mockGroup, playersMap, '8-Ball');
     expect(matches.length).toBe(10);
     expect(matches[0].player1Id).toBe('p1');
-    expect(matches[0].player2Id).toBe('p8');
+    expect(matches[0].player2Id).toBe('p2');
     expect(matches[0].status).toBe('scheduled');
   });
 
   it('auto-resolves BYE matches during initialization', () => {
     const playersWithBye = [...mockPlayers];
-    playersWithBye[7] = {
-      ...playersWithBye[7],
+    playersWithBye[1] = {
+      ...playersWithBye[1],
       isBye: true,
       name: 'BYE',
     };
@@ -114,14 +115,14 @@ describe('Bracket Engine Tests', () => {
     }, {} as Record<string, Player>);
 
     const matches = initializeGroupMatches('t1', mockGroup, mapWithBye, '8-Ball');
-    // Match 1 is p1 vs p8 (BYE). It should auto-resolve with p1 winning.
+    // Match 1 is p1 vs p2 (BYE). It should auto-resolve with p1 winning.
     const m1 = matches.find(m => m.matchNumber === 1);
     expect(m1?.status).toBe('completed');
     expect(m1?.winnerId).toBe('p1');
 
-    // And player 1 should be advanced to Match 5 (slot 1)
-    const m5 = matches.find(m => m.matchNumber === 5);
-    expect(m5?.player1Id).toBe('p1');
+    // And player 1 should be advanced to Match 9 (slot 1)
+    const m9 = matches.find(m => m.matchNumber === 9);
+    expect(m9?.player1Id).toBe('p1');
   });
 
   it('advances players correctly through the Double Elimination tree', () => {
@@ -136,48 +137,157 @@ describe('Bracket Engine Tests', () => {
 
     advanceDoubleEliminationMatch(m1, matches, playersMap, '8-Ball');
 
-    const m5 = matches.find(m => m.matchNumber === 5)!;
+    const m9 = matches.find(m => m.matchNumber === 9)!;
     const m7 = matches.find(m => m.matchNumber === 7)!;
 
-    // Winner of M1 goes to M5 slot 1, Loser of M1 goes to M7 slot 1
-    expect(m5.player1Id).toBe('p1');
-    expect(m7.player1Id).toBe('p8');
+    // Winner of M1 goes to M9 slot 1, Loser of M1 goes to M7 slot 1
+    expect(m9.player1Id).toBe('p1');
+    expect(m7.player1Id).toBe('p2');
   });
 
   it('identifies group qualifiers correctly', () => {
     const matches = initializeGroupMatches('t1', mockGroup, playersMap, '8-Ball');
     
-    // Complete all matches to simulate qualifiers
-    // Winners of Semifinals (Match 5 and 6)
-    const m5 = matches.find(m => m.matchNumber === 5)!;
-    m5.status = 'completed';
-    m5.winnerId = 'p1';
-    m5.player1Id = 'p1';
-    m5.player2Id = 'p4';
-
-    const m6 = matches.find(m => m.matchNumber === 6)!;
-    m6.status = 'completed';
-    m6.winnerId = 'p3';
-    m6.player1Id = 'p3';
-    m6.player2Id = 'p2';
-
-    // Winners of Loser's Round 2 (Match 9 and 10)
+    // Complete matches to simulate qualifiers
+    // Match 9 winner (qualifier 1)
     const m9 = matches.find(m => m.matchNumber === 9)!;
     m9.status = 'completed';
-    m9.winnerId = 'p5';
-    m9.player1Id = 'p4'; // Loser of m5
-    m9.player2Id = 'p5';
+    m9.winnerId = 'p1';
+    m9.player1Id = 'p1';
+    m9.player2Id = 'p2';
 
+    // Match 10 winner (qualifier 2)
     const m10 = matches.find(m => m.matchNumber === 10)!;
     m10.status = 'completed';
-    m10.winnerId = 'p6';
-    m10.player1Id = 'p2'; // Loser of m6
-    m10.player2Id = 'p6';
+    m10.winnerId = 'p3';
+    m10.player1Id = 'p3';
+    m10.player2Id = 'p4';
+
+    // Match 5 winner (qualifier 3)
+    const m5 = matches.find(m => m.matchNumber === 5)!;
+    m5.status = 'completed';
+    m5.winnerId = 'p5';
+    m5.player1Id = 'p5';
+    m5.player2Id = 'p7';
+
+    // Match 6 winner (qualifier 4)
+    const m6 = matches.find(m => m.matchNumber === 6)!;
+    m6.status = 'completed';
+    m6.winnerId = 'p6';
+    m6.player1Id = 'p6';
+    m6.player2Id = 'p8';
 
     const qualifiers = getGroupQualifiers(mockGroup, matches);
     expect(qualifiers.winners).toContain('p1');
     expect(qualifiers.winners).toContain('p3');
     expect(qualifiers.losers).toContain('p5');
     expect(qualifiers.losers).toContain('p6');
+  });
+
+  it('seeds players such that BYEs do not play each other in Round 1 matches and sets pricing', async () => {
+    const db = getDatabaseAdapter();
+    
+    // Use real seeded player IDs that the DB adapter knows about.
+    // 6 real players + 2 BYEs will be added automatically to make 8.
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland'];
+    
+    const tournament = await db.createTournament(
+      'Test Seeding Tournament',
+      '8-Ball',
+      playersRoster,
+      50,
+      [60, 40]
+    );
+
+    expect(tournament.entryFee).toBe(50);
+    expect(tournament.payoutPercentages).toEqual([60, 40]);
+
+    // Retrieve tournament details to inspect matches
+    const details = await db.getTournamentDetails(tournament.id);
+    expect(details).not.toBeNull();
+    if (details) {
+      const groupAMatches = details.matches.filter(m => m.groupId === details.groups[0].id);
+      expect(groupAMatches.length).toBe(10);
+
+      // Check first round matches (Matches 1-4)
+      const r1Matches = groupAMatches.filter(m => m.matchNumber >= 1 && m.matchNumber <= 4);
+      expect(r1Matches.length).toBe(4);
+
+      // Verify no match has two BYE players
+      r1Matches.forEach(m => {
+        const p1IsBye = m.player1Id.includes('BYE');
+        const p2IsBye = m.player2Id.includes('BYE');
+        // Both p1 and p2 should NOT be BYE
+        expect(p1IsBye && p2IsBye).toBe(false);
+      });
+    }
+  });
+
+  it('saves and retrieves Calcutta settings correctly', async () => {
+    const db = getDatabaseAdapter();
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland'];
+    
+    const tournament = await db.createTournament(
+      'Test Calcutta Tournament',
+      '9-Ball',
+      playersRoster,
+      100,
+      [50, 30, 20],
+      true,      // hasCalcutta
+      20,        // calcuttaMinStartBet
+      10,        // calcuttaMinIncrement
+      [70, 30]   // calcuttaPayoutPercentages
+    );
+
+    expect(tournament.hasCalcutta).toBe(true);
+    expect(tournament.calcuttaMinStartBet).toBe(20);
+    expect(tournament.calcuttaMinIncrement).toBe(10);
+    expect(tournament.calcuttaPayoutPercentages).toEqual([70, 30]);
+
+    // Retrieve and verify details mapping
+    const details = await db.getTournamentDetails(tournament.id);
+    expect(details).not.toBeNull();
+    if (details) {
+      expect(details.tournament.hasCalcutta).toBe(true);
+      expect(details.tournament.calcuttaMinStartBet).toBe(20);
+      expect(details.tournament.calcuttaMinIncrement).toBe(10);
+      expect(details.tournament.calcuttaPayoutPercentages).toEqual([70, 30]);
+    }
+  });
+
+  it('starts a Calcutta tournament as draft, saves bids, and advances to active', async () => {
+    const db = getDatabaseAdapter();
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland'];
+    
+    // Create Calcutta tournament
+    const tournament = await db.createTournament(
+      'Calcutta Auction Draft Tourney',
+      '8-Ball',
+      playersRoster,
+      50,
+      [60, 40],
+      true,     // hasCalcutta
+      10,       // minStartBet
+      5,        // minIncrement
+      [50, 30, 20]
+    );
+
+    // Initial status should be 'draft' when hasCalcutta is true
+    expect(tournament.status).toBe('draft');
+
+    const bids = playersRoster.map((pid, idx) => ({
+      playerId: pid,
+      bidAmount: 10 + idx * 5,
+      buyerName: `Buyer_${pid}`,
+    }));
+
+    // Start tournament and save bids
+    const details = await db.startTournament(tournament.id, bids);
+    expect(details.tournament.status).toBe('active');
+    expect(details.tournament.calcuttaBids).toHaveLength(6);
+    expect(details.tournament.calcuttaBids?.[0].buyerName).toBe('Buyer_efren');
+    expect(details.tournament.calcuttaBids?.[0].bidAmount).toBe(10);
+    expect(details.tournament.calcuttaBids?.[5].buyerName).toBe('Buyer_strickland');
+    expect(details.tournament.calcuttaBids?.[5].bidAmount).toBe(35);
   });
 });

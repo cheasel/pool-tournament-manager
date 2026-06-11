@@ -13,6 +13,13 @@ export type TournamentStatus = 'draft' | 'active' | 'completed';
 export type MatchStatus = 'scheduled' | 'playing' | 'completed';
 export type RoundType = 'group_winners' | 'group_losers' | 'knockout';
 
+export interface CalcuttaBid {
+  playerId: string;
+  bidAmount: number;
+  buyerName: string;
+  split?: boolean;
+}
+
 export interface Tournament {
   id: string;
   name: string;
@@ -20,6 +27,13 @@ export interface Tournament {
   status: TournamentStatus;
   createdAt: string;
   winnerId?: string;
+  entryFee?: number;
+  payoutPercentages?: number[];
+  hasCalcutta?: boolean;
+  calcuttaMinStartBet?: number;
+  calcuttaMinIncrement?: number;
+  calcuttaPayoutPercentages?: number[];
+  calcuttaBids?: CalcuttaBid[];
 }
 
 export interface Group {

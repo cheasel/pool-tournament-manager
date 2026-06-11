@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Player, Tournament, Group, Match, MatchStats, TournamentDetails } from '../../types';
+import { Player, Tournament, Group, Match, MatchStats, TournamentDetails, CalcuttaBid } from '../../types';
 import { initializeGroupMatches, getGroupQualifiers, seedSingleElimination, advanceDoubleEliminationMatch, advanceKnockoutMatches } from '../bracket';
 
 export interface DatabaseAdapter {
@@ -7,7 +7,17 @@ export interface DatabaseAdapter {
   createPlayer(player: Omit<Player, 'id' | 'createdAt'>): Promise<Player>;
   getTournaments(): Promise<Tournament[]>;
   getTournamentDetails(id: string): Promise<TournamentDetails | null>;
-  createTournament(name: string, gameType: '8-Ball' | '9-Ball' | '10-Ball', playerIds: string[]): Promise<Tournament>;
+  createTournament(
+    name: string,
+    gameType: '8-Ball' | '9-Ball' | '10-Ball',
+    playerIds: string[],
+    entryFee?: number,
+    payoutPercentages?: number[],
+    hasCalcutta?: boolean,
+    calcuttaMinStartBet?: number,
+    calcuttaMinIncrement?: number,
+    calcuttaPayoutPercentages?: number[]
+  ): Promise<Tournament>;
   updateMatchScore(
     tournamentId: string,
     matchId: string,
@@ -15,6 +25,10 @@ export interface DatabaseAdapter {
     score2: number,
     stats1: MatchStats,
     stats2: MatchStats
+  ): Promise<TournamentDetails>;
+  startTournament(
+    id: string,
+    calcuttaBids?: CalcuttaBid[]
   ): Promise<TournamentDetails>;
 }
 
@@ -50,14 +64,22 @@ const MOCK_PLAYERS_SEED: Player[] = [
 // LocalStorage Adapter
 // ----------------------------------------------------
 class LocalStorageAdapterImpl implements DatabaseAdapter {
+  private memStorage: Record<string, string> = {};
+
   private getStorageItem<T>(key: string, defaultVal: T): T {
-    if (typeof window === 'undefined') return defaultVal;
+    if (typeof window === 'undefined') {
+      const item = this.memStorage[key];
+      return item ? JSON.parse(item) : defaultVal;
+    }
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : defaultVal;
   }
 
   private setStorageItem<T>(key: string, val: T): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      this.memStorage[key] = JSON.stringify(val);
+      return;
+    }
     localStorage.setItem(key, JSON.stringify(val));
   }
 
@@ -133,7 +155,13 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
   async createTournament(
     name: string,
     gameType: '8-Ball' | '9-Ball' | '10-Ball',
-    playerIds: string[]
+    playerIds: string[],
+    entryFee?: number,
+    payoutPercentages?: number[],
+    hasCalcutta?: boolean,
+    calcuttaMinStartBet?: number,
+    calcuttaMinIncrement?: number,
+    calcuttaPayoutPercentages?: number[]
   ): Promise<Tournament> {
     const allPlayers = await this.getPlayers();
     const playersMap = allPlayers.reduce((acc, p) => {
@@ -148,8 +176,14 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       id: tournamentId,
       name,
       gameType,
-      status: 'active',
+      status: hasCalcutta ? 'draft' : 'active',
       createdAt: now,
+      entryFee,
+      payoutPercentages,
+      hasCalcutta,
+      calcuttaMinStartBet,
+      calcuttaMinIncrement,
+      calcuttaPayoutPercentages,
     };
 
     // 1. Resolve players, pad with BYEs to reach multiple of 8
@@ -170,9 +204,24 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       });
     }
 
-    // 2. Shuffle and divide into groups of 8
-    const shuffled = [...finalPlayers].sort(() => Math.random() - 0.5);
-    const numGroups = shuffled.length / 8;
+    // 2. Distribute BYEs round-robin across all groups to seed them as evenly as possible
+    const realPlayers = [...selectedPlayers].sort(() => Math.random() - 0.5);
+    const byePlayers = finalPlayers.filter(p => p.isBye).sort(() => Math.random() - 0.5);
+    const numGroups = finalPlayers.length / 8;
+    const groupsPlayers: Player[][] = Array.from({ length: numGroups }, () => []);
+
+    let groupIdx = 0;
+    while (byePlayers.length > 0) {
+      const bye = byePlayers.pop()!;
+      groupsPlayers[groupIdx].push(bye);
+      groupIdx = (groupIdx + 1) % numGroups;
+    }
+    for (let i = 0; i < numGroups; i++) {
+      while (groupsPlayers[i].length < 8 && realPlayers.length > 0) {
+        groupsPlayers[i].push(realPlayers.pop()!);
+      }
+    }
+
     const groups: Group[] = [];
     let allMatches: Match[] = [];
 
@@ -183,8 +232,45 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
 
     for (let gIdx = 0; gIdx < numGroups; gIdx++) {
       const groupId = `group_${tournamentId}_${gIdx}`;
-      const groupPlayers = shuffled.slice(gIdx * 8, (gIdx + 1) * 8);
-      const groupPlayerIds = groupPlayers.map(p => p.id);
+      const groupPlayers = groupsPlayers[gIdx];
+
+      // Pair players in 4 matches, avoiding BYE-vs-BYE in first round
+      const groupBye = groupPlayers.filter(p => p.isBye);
+      const groupReal = groupPlayers.filter(p => !p.isBye);
+
+      const pairs: [Player | null, Player | null][] = Array.from({ length: 4 }, () => [null, null]);
+      let pairIdx = 0;
+      for (const bye of groupBye) {
+        if (pairIdx < 4) {
+          pairs[pairIdx][0] = bye;
+          pairIdx++;
+        } else {
+          const emptyPair = pairs.find(p => p[1] === null);
+          if (emptyPair) {
+            emptyPair[1] = bye;
+          }
+        }
+      }
+
+      for (const real of groupReal) {
+        const p = pairs.find(p => p[0] === null || p[1] === null);
+        if (p) {
+          if (p[0] === null) p[0] = real;
+          else p[1] = real;
+        }
+      }
+
+      const shuffledPairs = [...pairs].sort(() => Math.random() - 0.5);
+      const finalGroupPlayers: Player[] = [];
+      for (const pair of shuffledPairs) {
+        if (Math.random() > 0.5) {
+          finalGroupPlayers.push(pair[1]!, pair[0]!);
+        } else {
+          finalGroupPlayers.push(pair[0]!, pair[1]!);
+        }
+      }
+
+      const groupPlayerIds = finalGroupPlayers.map(p => p.id);
 
       const group: Group = {
         id: groupId,
@@ -294,6 +380,23 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     });
     this.setStorageItem('ptm_tournaments', tournaments);
 
+    return details;
+  }
+
+  async startTournament(id: string, calcuttaBids?: CalcuttaBid[]): Promise<TournamentDetails> {
+    const tournaments = await this.getTournaments();
+    const tournament = tournaments.find(t => t.id === id);
+    if (!tournament) throw new Error('Tournament not found');
+
+    tournament.status = 'active';
+    if (calcuttaBids) {
+      tournament.calcuttaBids = calcuttaBids;
+    }
+
+    this.setStorageItem('ptm_tournaments', tournaments);
+
+    const details = await this.getTournamentDetails(id);
+    if (!details) throw new Error('Failed to retrieve updated details');
     return details;
   }
 }
@@ -414,6 +517,13 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         status: tournamentData.status,
         createdAt: tournamentData.created_at,
         winnerId: tournamentData.winner_id,
+        entryFee: tournamentData.entry_fee,
+        payoutPercentages: tournamentData.payout_percentages,
+        hasCalcutta: tournamentData.has_calcutta,
+        calcuttaMinStartBet: tournamentData.calcutta_min_start_bet,
+        calcuttaMinIncrement: tournamentData.calcutta_min_increment,
+        calcuttaPayoutPercentages: tournamentData.calcutta_payout_percentages,
+        calcuttaBids: tournamentData.calcutta_bids,
       };
 
       const groups: Group[] = (groupsData || []).map((g: any) => ({
@@ -485,7 +595,13 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
   async createTournament(
     name: string,
     gameType: '8-Ball' | '9-Ball' | '10-Ball',
-    playerIds: string[]
+    playerIds: string[],
+    entryFee?: number,
+    payoutPercentages?: number[],
+    hasCalcutta?: boolean,
+    calcuttaMinStartBet?: number,
+    calcuttaMinIncrement?: number,
+    calcuttaPayoutPercentages?: number[]
   ): Promise<Tournament> {
     try {
       // For creation, we perform bracket logic, and write records to Supabase tables:
@@ -502,7 +618,13 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         .insert({
           name,
           game_type: gameType,
-          status: 'active',
+          status: hasCalcutta ? 'draft' : 'active',
+          entry_fee: entryFee,
+          payout_percentages: payoutPercentages,
+          has_calcutta: hasCalcutta,
+          calcutta_min_start_bet: calcuttaMinStartBet,
+          calcutta_min_increment: calcuttaMinIncrement,
+          calcutta_payout_percentages: calcuttaPayoutPercentages,
         })
         .select()
         .single();
@@ -529,9 +651,23 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         });
       }
 
-      // 3. Shuffle
-      const shuffled = [...finalPlayers].sort(() => Math.random() - 0.5);
-      const numGroups = shuffled.length / 8;
+      // 3. Seeding logic with constraint (avoid BYE-vs-BYE matches in round 1)
+      const realPlayers = [...selectedPlayers].sort(() => Math.random() - 0.5);
+      const byePlayers = finalPlayers.filter(p => p.isBye).sort(() => Math.random() - 0.5);
+      const numGroups = finalPlayers.length / 8;
+      const groupsPlayers: Player[][] = Array.from({ length: numGroups }, () => []);
+
+      let groupIdx = 0;
+      while (byePlayers.length > 0) {
+        const bye = byePlayers.pop()!;
+        groupsPlayers[groupIdx].push(bye);
+        groupIdx = (groupIdx + 1) % numGroups;
+      }
+      for (let i = 0; i < numGroups; i++) {
+        while (groupsPlayers[i].length < 8 && realPlayers.length > 0) {
+          groupsPlayers[i].push(realPlayers.pop()!);
+        }
+      }
 
       const groupPlayersMap = finalPlayers.reduce((acc, p) => {
         acc[p.id] = p;
@@ -539,8 +675,45 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
       }, {} as Record<string, Player>);
 
       for (let gIdx = 0; gIdx < numGroups; gIdx++) {
-        const groupPlayers = shuffled.slice(gIdx * 8, (gIdx + 1) * 8);
-        const groupPlayerIds = groupPlayers.map(p => p.id);
+        const groupPlayers = groupsPlayers[gIdx];
+
+        // Pair players avoiding BYE-vs-BYE
+        const groupBye = groupPlayers.filter(p => p.isBye);
+        const groupReal = groupPlayers.filter(p => !p.isBye);
+
+        const pairs: [Player | null, Player | null][] = Array.from({ length: 4 }, () => [null, null]);
+        let pairIdx = 0;
+        for (const bye of groupBye) {
+          if (pairIdx < 4) {
+            pairs[pairIdx][0] = bye;
+            pairIdx++;
+          } else {
+            const emptyPair = pairs.find(p => p[1] === null);
+            if (emptyPair) {
+              emptyPair[1] = bye;
+            }
+          }
+        }
+
+        for (const real of groupReal) {
+          const p = pairs.find(p => p[0] === null || p[1] === null);
+          if (p) {
+            if (p[0] === null) p[0] = real;
+            else p[1] = real;
+          }
+        }
+
+        const shuffledPairs = [...pairs].sort(() => Math.random() - 0.5);
+        const finalGroupPlayers: Player[] = [];
+        for (const pair of shuffledPairs) {
+          if (Math.random() > 0.5) {
+            finalGroupPlayers.push(pair[1]!, pair[0]!);
+          } else {
+            finalGroupPlayers.push(pair[0]!, pair[1]!);
+          }
+        }
+
+        const groupPlayerIds = finalGroupPlayers.map(p => p.id);
 
         // Create Group
         const { data: groupData, error: gErr } = await this.client
@@ -597,10 +770,27 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         gameType: tournamentData.game_type,
         status: tournamentData.status,
         createdAt: tournamentData.created_at,
+        entryFee: tournamentData.entry_fee,
+        payoutPercentages: tournamentData.payout_percentages,
+        hasCalcutta: tournamentData.has_calcutta,
+        calcuttaMinStartBet: tournamentData.calcutta_min_start_bet,
+        calcuttaMinIncrement: tournamentData.calcutta_min_increment,
+        calcuttaPayoutPercentages: tournamentData.calcutta_payout_percentages,
+        calcuttaBids: tournamentData.calcutta_bids,
       };
     } catch (e) {
       console.warn('Supabase createTournament failed, falling back to LocalStorage', e);
-      return localStorageAdapter.createTournament(name, gameType, playerIds);
+      return localStorageAdapter.createTournament(
+        name,
+        gameType,
+        playerIds,
+        entryFee,
+        payoutPercentages,
+        hasCalcutta,
+        calcuttaMinStartBet,
+        calcuttaMinIncrement,
+        calcuttaPayoutPercentages
+      );
     }
   }
 
@@ -713,7 +903,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         }
       }
 
-      // Upsert the updated matches list to Supabase
+    // Upsert the updated matches list to Supabase
       const matchesToUpsert = updatedMatchesList.map(m => ({
         id: m.id,
         tournament_id: tournamentId,
@@ -742,6 +932,29 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase updateMatchScore failed, falling back to LocalStorage', e);
       return localStorageAdapter.updateMatchScore(tournamentId, matchId, score1, score2, stats1, stats2);
+    }
+  }
+
+  async startTournament(id: string, calcuttaBids?: CalcuttaBid[]): Promise<TournamentDetails> {
+    try {
+      const { data, error } = await this.client
+        .from('tournaments')
+        .update({
+          status: 'active',
+          calcutta_bids: calcuttaBids,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error || !data) throw new Error('Failed to update tournament status in Supabase');
+
+      const details = await this.getTournamentDetails(id);
+      if (!details) throw new Error('Failed to load updated tournament details');
+      return details;
+    } catch (e) {
+      console.warn('Supabase startTournament failed, falling back to LocalStorage', e);
+      return localStorageAdapter.startTournament(id, calcuttaBids);
     }
   }
 }

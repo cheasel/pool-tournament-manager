@@ -7,58 +7,58 @@ import { calculateMatchHandicap } from './handicap';
  */
 interface ProgressionRule {
   onWin: { type: 'match' | 'qualify'; id: number; slot: 1 | 2 };
-  onLoss: { type: 'match' | 'eliminate'; id?: number; slot?: 1 | 2 };
+  onLoss: { type: 'match' | 'eliminate' | 'qualify'; id?: number; slot?: 1 | 2 };
 }
 
 export const DE_PROGRESSION: Record<number, ProgressionRule> = {
-  // Winner's Round 1
+  // First Round (Middle Column)
   1: {
-    onWin: { type: 'match', id: 5, slot: 1 },
+    onWin: { type: 'match', id: 9, slot: 1 },
     onLoss: { type: 'match', id: 7, slot: 1 },
   },
   2: {
-    onWin: { type: 'match', id: 5, slot: 2 },
+    onWin: { type: 'match', id: 9, slot: 2 },
     onLoss: { type: 'match', id: 7, slot: 2 },
   },
   3: {
-    onWin: { type: 'match', id: 6, slot: 1 },
+    onWin: { type: 'match', id: 10, slot: 1 },
     onLoss: { type: 'match', id: 8, slot: 1 },
   },
   4: {
-    onWin: { type: 'match', id: 6, slot: 2 },
+    onWin: { type: 'match', id: 10, slot: 2 },
     onLoss: { type: 'match', id: 8, slot: 2 },
   },
-  // Winner's Semifinals (Winners qualify for Single Elimination with 0 losses)
+  // Round 3 Losers (Far-Left Column)
   5: {
-    onWin: { type: 'qualify', id: 1, slot: 1 }, // Winner Qualifier 1
-    onLoss: { type: 'match', id: 9, slot: 1 },
+    onWin: { type: 'qualify', id: 3, slot: 1 },
+    onLoss: { type: 'eliminate' },
   },
   6: {
-    onWin: { type: 'qualify', id: 2, slot: 1 }, // Winner Qualifier 2
-    onLoss: { type: 'match', id: 10, slot: 1 },
+    onWin: { type: 'qualify', id: 4, slot: 1 },
+    onLoss: { type: 'eliminate' },
   },
-  // Loser's Round 1
+  // Round 2 Losers (Left-Middle Column)
   7: {
-    onWin: { type: 'match', id: 10, slot: 2 },
+    onWin: { type: 'match', id: 5, slot: 1 },
     onLoss: { type: 'eliminate' },
   },
   8: {
-    onWin: { type: 'match', id: 9, slot: 2 },
+    onWin: { type: 'match', id: 6, slot: 1 },
     onLoss: { type: 'eliminate' },
   },
-  // Loser's Round 2 (Winners qualify for Single Elimination with 1 loss)
+  // Round 2 Winners (Right Column)
   9: {
-    onWin: { type: 'qualify', id: 3, slot: 1 }, // Loser Qualifier 1
-    onLoss: { type: 'eliminate' },
+    onWin: { type: 'qualify', id: 1, slot: 1 },
+    onLoss: { type: 'match', id: 6, slot: 2 },
   },
   10: {
-    onWin: { type: 'qualify', id: 4, slot: 1 }, // Loser Qualifier 2
-    onLoss: { type: 'eliminate' },
+    onWin: { type: 'qualify', id: 2, slot: 1 },
+    onLoss: { type: 'match', id: 5, slot: 2 },
   },
 };
 
 /**
- * Initializes a standard 8-player Double Elimination group stage.
+ * Initializes a staggered 8-player Double Elimination group stage.
  */
 export function initializeGroupMatches(
   tournamentId: string,
@@ -69,18 +69,20 @@ export function initializeGroupMatches(
   const matches: Match[] = [];
   const pIds = group.playerIds; // Exactly 8 player IDs
 
-  // Define the 10 matches in the DE bracket
+  // Define the 10 matches in the staggered DE bracket
   const matchSetups = [
-    // Winner's Round 1
-    { matchNumber: 1, p1: pIds[0], p2: pIds[7] },
-    { matchNumber: 2, p1: pIds[3], p2: pIds[4] },
-    { matchNumber: 3, p1: pIds[2], p2: pIds[5] },
-    { matchNumber: 4, p1: pIds[1], p2: pIds[6] },
-    // Placeholder matches for rounds that depend on previous results
+    // Round 1 (All 8 players play in Matches 1-4)
+    { matchNumber: 1, p1: pIds[0], p2: pIds[1] },
+    { matchNumber: 2, p1: pIds[2], p2: pIds[3] },
+    { matchNumber: 3, p1: pIds[4], p2: pIds[5] },
+    { matchNumber: 4, p1: pIds[6], p2: pIds[7] },
+    // Round 3 Losers
     { matchNumber: 5, p1: '', p2: '' },
     { matchNumber: 6, p1: '', p2: '' },
+    // Round 2 Losers
     { matchNumber: 7, p1: '', p2: '' },
     { matchNumber: 8, p1: '', p2: '' },
+    // Round 2 Winners
     { matchNumber: 9, p1: '', p2: '' },
     { matchNumber: 10, p1: '', p2: '' },
   ];
@@ -88,7 +90,6 @@ export function initializeGroupMatches(
   const now = new Date().toISOString();
 
   for (const setup of matchSetups) {
-    const isRound1 = setup.matchNumber <= 4;
     const player1 = setup.p1 ? playersMap[setup.p1] : null;
     const player2 = setup.p2 ? playersMap[setup.p2] : null;
 
@@ -105,12 +106,30 @@ export function initializeGroupMatches(
       spot2 = handicap.player2SpottedBalls;
     }
 
+    let roundType: 'group_winners' | 'group_losers' = 'group_winners';
+    let roundNumber = 1;
+
+    if (setup.matchNumber >= 1 && setup.matchNumber <= 4) {
+      roundType = 'group_winners';
+      roundNumber = 1;
+    } else if (setup.matchNumber === 9 || setup.matchNumber === 10) {
+      roundType = 'group_winners';
+      roundNumber = 2;
+    } else if (setup.matchNumber === 7 || setup.matchNumber === 8) {
+      roundType = 'group_losers';
+      roundNumber = 1;
+    } else {
+      // Matches 5 and 6
+      roundType = 'group_losers';
+      roundNumber = 2;
+    }
+
     const match: Match = {
       id: `${group.id}_m${setup.matchNumber}`,
       tournamentId,
       groupId: group.id,
-      roundType: setup.matchNumber <= 6 ? 'group_winners' : 'group_losers',
-      roundNumber: setup.matchNumber <= 4 ? 1 : setup.matchNumber <= 6 ? 2 : setup.matchNumber <= 8 ? 1 : 2,
+      roundType,
+      roundNumber,
       matchNumber: setup.matchNumber,
       player1Id: setup.p1 || '',
       player2Id: setup.p2 || '',
@@ -120,7 +139,7 @@ export function initializeGroupMatches(
       player2Target: target2,
       player1SpottedBalls: spot1,
       player2SpottedBalls: spot2,
-      status: isRound1 ? 'scheduled' : 'scheduled',
+      status: 'scheduled',
       createdAt: now,
     };
 
@@ -260,19 +279,19 @@ export interface GroupQualifiers {
 export function getGroupQualifiers(group: Group, matches: Match[]): GroupQualifiers {
   const groupMatches = matches.filter(m => m.groupId === group.id);
   
-  // Winners are the winners of Matches 5 and 6
-  const m5 = groupMatches.find(m => m.matchNumber === 5);
-  const m6 = groupMatches.find(m => m.matchNumber === 6);
-  const winners: string[] = [];
-  if (m5?.status === 'completed' && m5.winnerId) winners.push(m5.winnerId);
-  if (m6?.status === 'completed' && m6.winnerId) winners.push(m6.winnerId);
-
-  // Losers are the winners of Matches 9 and 10 (since they survived the Loser's side)
+  // Winners are the winners of Matches 9 and 10
   const m9 = groupMatches.find(m => m.matchNumber === 9);
   const m10 = groupMatches.find(m => m.matchNumber === 10);
+  const winners: string[] = [];
+  if (m9?.status === 'completed' && m9.winnerId) winners.push(m9.winnerId);
+  if (m10?.status === 'completed' && m10.winnerId) winners.push(m10.winnerId);
+
+  // Losers are the winners of Matches 5 and 6
+  const m5 = groupMatches.find(m => m.matchNumber === 5);
+  const m6 = groupMatches.find(m => m.matchNumber === 6);
   const losers: string[] = [];
-  if (m9?.status === 'completed' && m9.winnerId) losers.push(m9.winnerId);
-  if (m10?.status === 'completed' && m10.winnerId) losers.push(m10.winnerId);
+  if (m5?.status === 'completed' && m5.winnerId) losers.push(m5.winnerId);
+  if (m6?.status === 'completed' && m6.winnerId) losers.push(m6.winnerId);
 
   return {
     groupId: group.id,
