@@ -290,4 +290,48 @@ describe('Bracket Engine Tests', () => {
     expect(details.tournament.calcuttaBids?.[5].buyerName).toBe('Buyer_strickland');
     expect(details.tournament.calcuttaBids?.[5].bidAmount).toBe(35);
   });
+
+  it('saves and retrieves tournament payments tracking lists correctly', async () => {
+    const db = getDatabaseAdapter();
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland'];
+    const tournament = await db.createTournament(
+      'Payment Test Tournament',
+      '8-Ball',
+      playersRoster,
+      50,
+      [60, 40]
+    );
+
+    // Initial payments lists should be empty or undefined
+    let details = await db.getTournamentDetails(tournament.id);
+    expect(details?.tournament.entryFeePaidIds).toBeFalsy();
+
+    // Update payments
+    const entryFeePaid = ['efren', 'svb'];
+    const calcuttaPaid = ['filler'];
+    const playerPayoutPaid = ['efren'];
+    const ownerPayoutPaid = ['svb'];
+
+    details = await db.updateTournamentPayments(
+      tournament.id,
+      entryFeePaid,
+      calcuttaPaid,
+      playerPayoutPaid,
+      ownerPayoutPaid
+    );
+
+    // Verify values returned
+    expect(details.tournament.entryFeePaidIds).toEqual(entryFeePaid);
+    expect(details.tournament.calcuttaBidsPaidIds).toEqual(calcuttaPaid);
+    expect(details.tournament.playerPayoutPaidIds).toEqual(playerPayoutPaid);
+    expect(details.tournament.ownerPayoutPaidIds).toEqual(ownerPayoutPaid);
+
+    // Re-retrieve to verify persistence
+    const reFetched = await db.getTournamentDetails(tournament.id);
+    expect(reFetched?.tournament.entryFeePaidIds).toEqual(entryFeePaid);
+    expect(reFetched?.tournament.calcuttaBidsPaidIds).toEqual(calcuttaPaid);
+    expect(reFetched?.tournament.playerPayoutPaidIds).toEqual(playerPayoutPaid);
+    expect(reFetched?.tournament.ownerPayoutPaidIds).toEqual(ownerPayoutPaid);
+  });
 });
+

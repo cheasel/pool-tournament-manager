@@ -30,6 +30,13 @@ export interface DatabaseAdapter {
     id: string,
     calcuttaBids?: CalcuttaBid[]
   ): Promise<TournamentDetails>;
+  updateTournamentPayments(
+    id: string,
+    entryFeePaidIds: string[],
+    calcuttaBidsPaidIds: string[],
+    playerPayoutPaidIds: string[],
+    ownerPayoutPaidIds: string[]
+  ): Promise<TournamentDetails>;
 }
 
 // ----------------------------------------------------
@@ -399,6 +406,29 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     if (!details) throw new Error('Failed to retrieve updated details');
     return details;
   }
+
+  async updateTournamentPayments(
+    id: string,
+    entryFeePaidIds: string[],
+    calcuttaBidsPaidIds: string[],
+    playerPayoutPaidIds: string[],
+    ownerPayoutPaidIds: string[]
+  ): Promise<TournamentDetails> {
+    const tournaments = await this.getTournaments();
+    const tournament = tournaments.find(t => t.id === id);
+    if (!tournament) throw new Error('Tournament not found');
+
+    tournament.entryFeePaidIds = entryFeePaidIds;
+    tournament.calcuttaBidsPaidIds = calcuttaBidsPaidIds;
+    tournament.playerPayoutPaidIds = playerPayoutPaidIds;
+    tournament.ownerPayoutPaidIds = ownerPayoutPaidIds;
+
+    this.setStorageItem('ptm_tournaments', tournaments);
+
+    const details = await this.getTournamentDetails(id);
+    if (!details) throw new Error('Failed to retrieve updated details');
+    return details;
+  }
 }
 
 // ----------------------------------------------------
@@ -524,6 +554,10 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         calcuttaMinIncrement: tournamentData.calcutta_min_increment,
         calcuttaPayoutPercentages: tournamentData.calcutta_payout_percentages,
         calcuttaBids: tournamentData.calcutta_bids,
+        entryFeePaidIds: tournamentData.entry_fee_paid_ids || [],
+        calcuttaBidsPaidIds: tournamentData.calcutta_bids_paid_ids || [],
+        playerPayoutPaidIds: tournamentData.player_payout_paid_ids || [],
+        ownerPayoutPaidIds: tournamentData.owner_payout_paid_ids || [],
       };
 
       const groups: Group[] = (groupsData || []).map((g: any) => ({
@@ -955,6 +989,43 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase startTournament failed, falling back to LocalStorage', e);
       return localStorageAdapter.startTournament(id, calcuttaBids);
+    }
+  }
+
+  async updateTournamentPayments(
+    id: string,
+    entryFeePaidIds: string[],
+    calcuttaBidsPaidIds: string[],
+    playerPayoutPaidIds: string[],
+    ownerPayoutPaidIds: string[]
+  ): Promise<TournamentDetails> {
+    try {
+      const { data, error } = await this.client
+        .from('tournaments')
+        .update({
+          entry_fee_paid_ids: entryFeePaidIds,
+          calcutta_bids_paid_ids: calcuttaBidsPaidIds,
+          player_payout_paid_ids: playerPayoutPaidIds,
+          owner_payout_paid_ids: ownerPayoutPaidIds,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error || !data) throw new Error('Failed to update tournament payments in Supabase');
+
+      const details = await this.getTournamentDetails(id);
+      if (!details) throw new Error('Failed to load updated tournament details');
+      return details;
+    } catch (e) {
+      console.warn('Supabase updateTournamentPayments failed, falling back to LocalStorage', e);
+      return localStorageAdapter.updateTournamentPayments(
+        id,
+        entryFeePaidIds,
+        calcuttaBidsPaidIds,
+        playerPayoutPaidIds,
+        ownerPayoutPaidIds
+      );
     }
   }
 }
