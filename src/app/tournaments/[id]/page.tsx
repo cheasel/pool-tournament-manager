@@ -645,7 +645,7 @@ export default function TournamentDetailPage() {
                     <div className="w-full overflow-hidden">
                       <table className="w-full text-[11px] xl:text-xs text-left border-collapse table-layout-fixed">
                         <thead>
-                          <tr className="text-[10px] xl:text-[11px] text-muted-foreground uppercase font-extrabold border-b border-border/40">
+                          <tr className="text-[10px] xl:text-[11px] text-muted-foreground uppercase font-extrabold border-b border-border/15">
                             <th className="py-2 px-0.5 text-center font-bold w-[8%]">#</th>
                             <th className="py-2 px-0.5 w-[26%]">Player</th>
                             <th className="py-2 px-0.5 text-center font-bold w-[10%]">HC</th>
@@ -655,7 +655,7 @@ export default function TournamentDetailPage() {
                             <th className="py-2 px-0.5 text-center w-[10%]">Stat</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-border/10">
+                        <tbody className="divide-y divide-border/5">
                           {rosterList.map((player, idx) => {
                             const absoluteIdx = offset + idx;
                             const isCurrent = currentRosterIdx < shuffledRoster.length && shuffledRoster[currentRosterIdx]?.id === player.id;
@@ -716,7 +716,7 @@ export default function TournamentDetailPage() {
                 return (
                   <div className="grid gap-2.5 xl:gap-4 lg:grid-cols-4 animate-fade-in">
                     {/* Left Column: Roster Table Part 1 (1 to half) */}
-                    <div className="lg:col-span-1 glass-panel px-1.5 py-3 xl:p-3 rounded-2xl border border-border/40 flex flex-col h-fit overflow-hidden">
+                    <div className="lg:col-span-1 glass-panel px-1.5 py-3 xl:p-3 rounded-2xl flex flex-col h-fit overflow-hidden">
                       <h3 className="text-xs font-black text-primary border-b border-border/40 pb-2 mb-3 tracking-wider uppercase text-center flex items-center justify-center gap-1.5 shrink-0">
                         <Users className="h-3.5 w-3.5 text-primary" />
                         Roster (1-{half})
@@ -736,11 +736,11 @@ export default function TournamentDetailPage() {
                           
                           {/* Parameters badges */}
                           <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-900/60 p-3 rounded-xl border border-border/40 text-center space-y-0.5">
+                            <div className="bg-slate-900/60 p-3 rounded-xl border border-border/15 text-center space-y-0.5">
                               <span className="block text-[10px] uppercase font-bold text-muted-foreground">Min Start BID</span>
                               <span className="text-lg font-black text-primary">${tournament.calcuttaMinStartBet ?? 10}</span>
                             </div>
-                            <div className="bg-slate-900/60 p-3 rounded-xl border border-border/40 text-center space-y-0.5">
+                            <div className="bg-slate-900/60 p-3 rounded-xl border border-border/15 text-center space-y-0.5">
                               <span className="block text-[10px] uppercase font-bold text-muted-foreground">Increment</span>
                               <span className="text-lg font-black text-primary">${tournament.calcuttaMinIncrement ?? 5}</span>
                             </div>
@@ -750,8 +750,8 @@ export default function TournamentDetailPage() {
                           <div className="grid gap-4 md:grid-cols-2">
                             
                             {/* Left: Auction (Calcutta) Payout Splits */}
-                            <div className="glass-panel p-4 rounded-xl border border-border/40 space-y-3">
-                              <div className="flex justify-between items-center border-b border-border/40 pb-1.5 shrink-0">
+                            <div className="glass-panel p-4 rounded-xl space-y-3">
+                              <div className="flex justify-between items-center border-b border-border/15 pb-1.5 shrink-0">
                                 <h4 className="text-xs font-extrabold uppercase text-billiard-red flex items-center gap-1">
                                   <Coins className="h-3.5 w-3.5 text-billiard-red" />
                                   Auction Prize
@@ -780,8 +780,8 @@ export default function TournamentDetailPage() {
                             </div>
 
                             {/* Right: Players Payout Splits */}
-                            <div className="glass-panel p-4 rounded-xl border border-border/40 space-y-3">
-                              <div className="flex justify-between items-center border-b border-border/40 pb-1.5 shrink-0">
+                            <div className="glass-panel p-4 rounded-xl space-y-3">
+                              <div className="flex justify-between items-center border-b border-border/15 pb-1.5 shrink-0">
                                 <h4 className="text-xs font-extrabold uppercase text-primary flex items-center gap-1">
                                   <Trophy className="h-3.5 w-3.5 text-primary" />
                                   Tournament Prize
@@ -812,11 +812,11 @@ export default function TournamentDetailPage() {
                           </div>
 
                           {/* Active Player Card */}
-                          <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-5 border border-primary/20 relative overflow-hidden bg-slate-950/40 shrink-0">
+                          <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-5 border border-primary/10 relative overflow-hidden bg-slate-950/40 shrink-0">
                             {/* Glowing background ball accent */}
                             <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-primary/10 blur-[45px]" />
                             
-                            <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-border/40 pb-2.5">
+                            <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-border/15 pb-2.5">
                               <span className="text-primary uppercase tracking-wider font-extrabold">ACTIVE BIDDING BLOCK</span>
                               <span>Player {currentRosterIdx + 1} of {shuffledRoster.length}</span>
                             </div>
@@ -826,7 +826,7 @@ export default function TournamentDetailPage() {
                               const sl = tournament.gameType === '8-Ball' ? player.skillLevel8 : tournament.gameType === '9-Ball' ? player.skillLevel9 : player.skillLevel10;
                               return (
                                 <div className="text-center py-1 space-y-1">
-                                  <span className="inline-flex items-center justify-center h-10 w-10 font-black text-lg rounded-full bg-slate-900 border border-border text-primary shadow-inner">
+                                  <span className="inline-flex items-center justify-center h-10 w-10 font-black text-lg rounded-full bg-slate-900 border border-border/40 text-primary shadow-inner">
                                     {currentRosterIdx + 1}
                                   </span>
                                   <h3 className="text-2xl font-black text-white tracking-tight">{player.name}</h3>
@@ -838,7 +838,7 @@ export default function TournamentDetailPage() {
                             })()}
 
                             {/* Controls Inputs Row */}
-                            <div className="grid gap-4 sm:grid-cols-3 bg-slate-950/60 p-4 rounded-xl border border-border/40 text-xs">
+                            <div className="grid gap-4 sm:grid-cols-3 bg-slate-950/60 p-4 rounded-xl border border-border/15 text-xs">
                               {/* Buyer Name */}
                               <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
@@ -849,7 +849,7 @@ export default function TournamentDetailPage() {
                                   value={activeBuyerName}
                                   onChange={e => setActiveBuyerName(e.target.value)}
                                   placeholder="e.g. Scott"
-                                  className="w-full rounded-lg bg-background border border-border px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
+                                  className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
                                   autoFocus
                                 />
                               </div>
@@ -859,11 +859,11 @@ export default function TournamentDetailPage() {
                                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                                   Winning Bid ($)
                                 </label>
-                                <div className="flex items-center bg-background border border-border rounded-lg px-2 py-0.5">
+                                <div className="flex items-center bg-background border border-border/40 rounded-lg px-2 py-0.5">
                                   <button
                                     type="button"
                                     onClick={() => setActiveBidAmount(a => Math.max(tournament.calcuttaMinStartBet ?? 10, a - (tournament.calcuttaMinIncrement ?? 5)))}
-                                    className="h-7 w-7 rounded bg-slate-900 border border-border hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
+                                    className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
                                   >
                                     -
                                   </button>
@@ -877,7 +877,7 @@ export default function TournamentDetailPage() {
                                   <button
                                     type="button"
                                     onClick={() => setActiveBidAmount(a => a + (tournament.calcuttaMinIncrement ?? 5))}
-                                    className="h-7 w-7 rounded bg-slate-900 border border-border hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
+                                    className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
                                   >
                                     +
                                   </button>
@@ -892,7 +892,7 @@ export default function TournamentDetailPage() {
                                 <select
                                   value={activeSplit ? 'YES' : 'NO'}
                                   onChange={e => setActiveSplit(e.target.value === 'YES')}
-                                  className="w-full rounded-lg bg-background border border-border px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
+                                  className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
                                 >
                                   <option value="NO">NO</option>
                                   <option value="YES">YES</option>
@@ -912,7 +912,7 @@ export default function TournamentDetailPage() {
 
                           {/* Last Sold Player Banner Accent */}
                           {currentRosterIdx > 0 && (
-                            <div className="glass-panel p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/15 text-center animate-fade-in relative overflow-hidden shrink-0">
+                            <div className="glass-panel p-4 rounded-xl border border-emerald-500/15 bg-emerald-950/15 text-center animate-fade-in relative overflow-hidden shrink-0">
                               <div className="absolute top-0 left-0 bg-emerald-500 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 rounded-br">
                                 SOLD
                               </div>
@@ -950,8 +950,8 @@ export default function TournamentDetailPage() {
 
                           {/* Recent Auctions Edit History (Optional edit below block) */}
                           {Object.keys(bidsMap).some(pid => bidsMap[pid].buyerName !== '' || bidsMap[pid].bidAmount > (tournament.calcuttaMinStartBet ?? 10)) && (
-                            <div className="glass-panel rounded-2xl p-4 shadow-xl space-y-3 border border-border/40 shrink-0">
-                              <h3 className="text-xs font-black text-white border-b border-border/40 pb-1.5 uppercase tracking-wider">
+                            <div className="glass-panel rounded-2xl p-4 shadow-xl space-y-3 shrink-0">
+                              <h3 className="text-xs font-black text-white border-b border-border/15 pb-1.5 uppercase tracking-wider">
                                 Recent Auctions Bids Editor
                               </h3>
                               <div className="grid gap-3 sm:grid-cols-2 max-h-[140px] overflow-y-auto pr-1">
@@ -961,7 +961,7 @@ export default function TournamentDetailPage() {
                                   if (!isSold) return null;
 
                                   return (
-                                    <div key={player.id} className="bg-background/40 p-2 rounded-lg border border-border/20 text-xs flex justify-between items-center">
+                                    <div key={player.id} className="bg-background/40 p-2 rounded-lg border border-border/10 text-xs flex justify-between items-center">
                                       <div className="min-w-0">
                                         <p className="font-bold text-white truncate text-[11px]">{player.name}</p>
                                         <div className="flex gap-2 items-center text-[10px]">
@@ -983,7 +983,7 @@ export default function TournamentDetailPage() {
                                           </select>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-1 bg-background border border-border rounded px-1.5 py-0.5 shrink-0">
+                                      <div className="flex items-center gap-1 bg-background border border-border/40 rounded px-1.5 py-0.5 shrink-0">
                                         <span className="text-[9px] font-medium text-muted-foreground/60">$</span>
                                         <input
                                           type="number"
@@ -1004,7 +1004,7 @@ export default function TournamentDetailPage() {
                         <div className="space-y-6 animate-fade-in">
                           
                           {/* Final Review Table */}
-                          <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-4 border border-border/40">
+                          <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-4">
                             <div className="flex justify-between items-center border-b border-border pb-3">
                               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                 <Check className="h-5 w-5 text-primary" />
@@ -1027,7 +1027,7 @@ export default function TournamentDetailPage() {
                               {players.filter(p => !p.isBye).map(player => {
                                 const bid = bidsMap[player.id] || { bidAmount: tournament.calcuttaMinStartBet ?? 10, buyerName: '', split: false };
                                 return (
-                                  <div key={player.id} className="glass-panel p-2.5 rounded-lg border border-border/40 flex justify-between items-center text-xs">
+                                  <div key={player.id} className="glass-panel p-2.5 rounded-lg flex justify-between items-center text-xs">
                                     <div className="min-w-0">
                                       <p className="font-bold text-white truncate text-[11px]">{player.name}</p>
                                       <div className="flex gap-2 items-center text-[10px]">
@@ -1049,7 +1049,7 @@ export default function TournamentDetailPage() {
                                         </select>
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-1 bg-background border border-border rounded px-1.5 py-0.5 shrink-0">
+                                    <div className="flex items-center gap-1 bg-background border border-border/40 rounded px-1.5 py-0.5 shrink-0">
                                       <span className="text-[9px] font-medium text-muted-foreground/60">$</span>
                                       <input
                                         type="number"
@@ -1065,22 +1065,22 @@ export default function TournamentDetailPage() {
                           </div>
 
                           {/* Locked Bids Details sidebar cards inside Center Hub */}
-                          <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-4 border border-border/40">
-                            <h4 className="text-xs font-extrabold uppercase text-white border-b border-border/40 pb-2">
+                          <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-4">
+                            <h4 className="text-xs font-extrabold uppercase text-white border-b border-border pb-2">
                               Ready to Launch Tournament?
                             </h4>
                             <div className="grid gap-4 md:grid-cols-2">
-                              <div className="bg-slate-900/60 p-4 rounded-xl border border-border/40 text-center space-y-1">
+                              <div className="bg-slate-900/60 p-4 rounded-xl border border-border/15 text-center space-y-1">
                                 <p className="text-[9px] uppercase font-bold text-muted-foreground">Total Calcutta Pool</p>
                                 <p className="text-3xl font-black text-emerald-400">${totalCalcuttaPool}</p>
                               </div>
-                              <div className="bg-slate-900/60 p-4 rounded-xl border border-border/40 text-center space-y-1">
+                              <div className="bg-slate-900/60 p-4 rounded-xl border border-border/15 text-center space-y-1">
                                 <p className="text-[9px] uppercase font-bold text-muted-foreground">Players Entry Pool</p>
                                 <p className="text-3xl font-black text-primary">${totalPlayersPool}</p>
                               </div>
                             </div>
 
-                            <div className="rounded-lg bg-billiard-blue/10 border border-billiard-blue/20 p-3.5 flex gap-2 text-xs text-muted-foreground">
+                            <div className="rounded-lg bg-billiard-blue/10 border border-billiard-blue/10 p-3.5 flex gap-2 text-xs text-muted-foreground">
                               <Info className="h-4 w-4 text-billiard-blue shrink-0 mt-0.5" />
                               <p className="leading-relaxed">
                                 Locking bids will activate all matches, generate Double Elimination group cards, and unlock scoring entries. Ensure splits and bids are accurate.
@@ -1103,7 +1103,7 @@ export default function TournamentDetailPage() {
                     </div>
 
                     {/* Right Column: Roster Table Part 2 (half + 1 to end) */}
-                    <div className="lg:col-span-1 glass-panel px-1.5 py-3 xl:p-3 rounded-2xl border border-border/40 flex flex-col h-fit overflow-hidden">
+                    <div className="lg:col-span-1 glass-panel px-1.5 py-3 xl:p-3 rounded-2xl flex flex-col h-fit overflow-hidden">
                       <h3 className="text-xs font-black text-primary border-b border-border/40 pb-2 mb-3 tracking-wider uppercase text-center flex items-center justify-center gap-1.5 shrink-0">
                         <Users className="h-3.5 w-3.5 text-primary" />
                         Roster ({half + 1}-{realPlayers.length})
