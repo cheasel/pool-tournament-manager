@@ -1402,7 +1402,7 @@ export default function TournamentDetailPage() {
                   </div>
 
                   {/* Group Standings & Payouts */}
-                  <div className={`max-w-4xl mx-auto grid gap-6 md:grid-cols-2 ${tournament.hasCalcutta ? 'lg:grid-cols-3' : ''}`}>
+                  <div className={`max-w-none w-full grid gap-6 md:grid-cols-2 ${tournament.hasCalcutta ? 'lg:grid-cols-3' : ''}`}>
                     {/* Standings Card */}
                     <div className="glass-panel rounded-2xl p-5 shadow-xl space-y-4">
                       <h3 className="text-sm font-extrabold text-white border-b border-border pb-2 flex items-center gap-1.5">

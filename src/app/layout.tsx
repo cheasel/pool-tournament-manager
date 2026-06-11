@@ -17,7 +17,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-primary selection:text-background antialiased">
         {/* Premium Header */}
         <header className="sticky top-0 z-40 w-full border-b border-border bg-card/80 backdrop-blur-md">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
             <div className="flex h-16 items-center justify-between">
               {/* Logo */}
               <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ export default function RootLayout({
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <main className="flex-1 flex flex-col mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </main>
 
