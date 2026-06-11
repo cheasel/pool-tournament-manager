@@ -1193,6 +1193,55 @@ export default function TournamentDetailPage() {
                               </div>
                             </div>
 
+                            {/* Calcutta Auction Summary Table */}
+                            {tournament.hasCalcutta && (
+                              <div className="space-y-2 animate-fade-in">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Confirm Calcutta Auction & Splits</p>
+                                <div className="border border-border/40 rounded-xl overflow-hidden bg-slate-950/60 text-xs max-h-56 overflow-y-auto pr-1">
+                                  <table className="w-full text-left border-collapse">
+                                    <thead>
+                                      <tr className="bg-slate-900/60 border-b border-border/40 text-[9px] font-black uppercase text-muted-foreground tracking-wider">
+                                        <th className="py-2 px-4">Player</th>
+                                        <th className="py-2 px-4">Buyer / Owner</th>
+                                        <th className="py-2 px-4 text-right">Bid</th>
+                                        <th className="py-2 px-4 text-center">Split?</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/10 font-bold">
+                                      {players.filter(p => !p.isBye).map(player => {
+                                        const bid = bidsMap[player.id] || { bidAmount: tournament.calcuttaMinStartBet ?? 10, buyerName: '', split: false };
+                                        const buyerName = bid.buyerName.trim() || 'Player (Self)';
+                                        return (
+                                          <tr key={player.id} className="hover:bg-slate-800/10 transition-colors">
+                                            <td className="py-1.5 px-4 font-black text-white">{player.name}</td>
+                                            <td className="py-1.5 px-4 text-slate-300">
+                                              {buyerName === player.name || buyerName === 'Player (Self)' ? (
+                                                <span className="text-primary font-bold">Self</span>
+                                              ) : (
+                                                buyerName
+                                              )}
+                                            </td>
+                                            <td className="py-1.5 px-4 text-right text-emerald-400 font-extrabold">
+                                              ฿{bid.bidAmount}
+                                            </td>
+                                            <td className="py-1.5 px-4 text-center">
+                                              <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+                                                bid.split 
+                                                  ? 'bg-primary/20 text-primary border border-primary/20' 
+                                                  : 'bg-slate-800 text-slate-400 border border-slate-700/40'
+                                              }`}>
+                                                {bid.split ? 'YES' : 'NO'}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
                             <div className="rounded-lg bg-billiard-blue/10 border border-billiard-blue/10 p-3.5 flex gap-2 text-xs text-muted-foreground">
                               <Info className="h-4 w-4 text-billiard-blue shrink-0 mt-0.5" />
                               <p className="leading-relaxed">
