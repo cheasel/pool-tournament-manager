@@ -542,53 +542,44 @@ export default function TournamentDetailPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header Info */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-xs font-bold uppercase">
-              {tournament.gameType}
-            </span>
-            <span className={`text-xs font-semibold ${tournament.status === 'active' ? 'text-primary' : 'text-muted-foreground'}`}>
-              • {tournament.status === 'active' ? 'Active Bracket' : tournament.status === 'draft' ? 'Calcutta Auction' : 'Completed'}
-            </span>
+      {!(tournament.status === 'draft' && tournament.hasCalcutta) && (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-xs font-bold uppercase">
+                {tournament.gameType}
+              </span>
+              <span className={`text-xs font-semibold ${tournament.status === 'active' ? 'text-primary' : 'text-muted-foreground'}`}>
+                • {tournament.status === 'active' ? 'Active Bracket' : tournament.status === 'draft' ? 'Calcutta Auction' : 'Completed'}
+              </span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">
+              {tournament.name}
+            </h1>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+              <Calendar className="h-3.5 w-3.5" />
+              Launched {new Date(tournament.createdAt).toLocaleDateString()}
+            </div>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">
-            {tournament.name}
-          </h1>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
-            <Calendar className="h-3.5 w-3.5" />
-            Launched {new Date(tournament.createdAt).toLocaleDateString()}
-          </div>
-        </div>
 
-        {/* Winner Display if Complete */}
-        {tournament.status === 'completed' && tournament.winnerId && (
-          <div className="rounded-2xl bg-billiard-yellow/10 border border-billiard-yellow/20 px-6 py-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-billiard-yellow flex items-center justify-center text-background shadow-[0_0_15px_rgba(251,191,36,0.4)]">
-              <Trophy className="h-5 w-5 fill-current" />
+          {/* Winner Display if Complete */}
+          {tournament.status === 'completed' && tournament.winnerId && (
+            <div className="rounded-2xl bg-billiard-yellow/10 border border-billiard-yellow/20 px-6 py-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-billiard-yellow flex items-center justify-center text-background shadow-[0_0_15px_rgba(251,191,36,0.4)]">
+                <Trophy className="h-5 w-5 fill-current" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-billiard-yellow">Tournament Champion</p>
+                <p className="text-lg font-black text-white">{getPlayer(tournament.winnerId).name}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-billiard-yellow">Tournament Champion</p>
-              <p className="text-lg font-black text-white">{getPlayer(tournament.winnerId).name}</p>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {tournament.status === 'draft' && tournament.hasCalcutta ? (
         /* Main Calcutta Auction Screen Layout */
         <div className="w-full space-y-6 lg:-mx-6 xl:-mx-8 lg:w-auto">
-          {/* Header row (Logo, title, date) */}
-          <div className="text-center space-y-2 py-4 border-b border-border/40 relative overflow-hidden bg-slate-950/20 rounded-2xl p-6 shadow-md">
-            <div className="inline-flex items-center justify-center gap-3">
-              <Coins className="h-9 w-9 text-primary" />
-              <span className="text-2xl font-black tracking-wider text-white uppercase">Calcutta Auction</span>
-            </div>
-            <p className="text-xs text-muted-foreground font-semibold">
-              Tournament: {tournament.name} • Started {new Date(tournament.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          </div>
-
           {/* If the auction has NOT started, show the intro panel in full width */}
           {!auctionStarted ? (
             <div className="max-w-xl mx-auto glass-panel rounded-2xl p-8 shadow-xl text-center space-y-6 border border-border/40 py-12">
