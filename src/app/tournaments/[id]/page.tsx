@@ -15,7 +15,7 @@ export default function TournamentDetailPage() {
 
   const [details, setDetails] = useState<TournamentDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'groups' | 'knockout' | 'earnings'>('groups');
+  const [activeTab, setActiveTab] = useState<'groups' | 'knockout' | 'earnings' | 'payments'>('groups');
   const [activeGroupId, setActiveGroupId] = useState<string>('');
   
   // Scoring Modal State
@@ -37,6 +37,72 @@ export default function TournamentDetailPage() {
   const [activeSplit, setActiveSplit] = useState(false);
 
   const db = getDatabaseAdapter();
+
+  const [paymentCategory, setPaymentCategory] = useState<'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout'>('entry');
+
+  const handleTogglePayment = async (
+    category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout',
+    targetId: string
+  ) => {
+    if (!details) return;
+
+    const entryFeePaidIds = [...(details.tournament.entryFeePaidIds || [])];
+    const calcuttaBidsPaidIds = [...(details.tournament.calcuttaBidsPaidIds || [])];
+    const playerPayoutPaidIds = [...(details.tournament.playerPayoutPaidIds || [])];
+    const ownerPayoutPaidIds = [...(details.tournament.ownerPayoutPaidIds || [])];
+
+    if (category === 'entry') {
+      const idx = entryFeePaidIds.indexOf(targetId);
+      if (idx > -1) entryFeePaidIds.splice(idx, 1);
+      else entryFeePaidIds.push(targetId);
+    } else if (category === 'calcuttaBid') {
+      const idx = calcuttaBidsPaidIds.indexOf(targetId);
+      if (idx > -1) calcuttaBidsPaidIds.splice(idx, 1);
+      else calcuttaBidsPaidIds.push(targetId);
+    } else if (category === 'payout') {
+      const idx = playerPayoutPaidIds.indexOf(targetId);
+      if (idx > -1) playerPayoutPaidIds.splice(idx, 1);
+      else playerPayoutPaidIds.push(targetId);
+    } else if (category === 'calcuttaPayout') {
+      const idx = ownerPayoutPaidIds.indexOf(targetId);
+      if (idx > -1) ownerPayoutPaidIds.splice(idx, 1);
+      else ownerPayoutPaidIds.push(targetId);
+    }
+
+    try {
+      const updatedDetails = await db.updateTournamentPayments(
+        details.tournament.id,
+        entryFeePaidIds,
+        calcuttaBidsPaidIds,
+        playerPayoutPaidIds,
+        ownerPayoutPaidIds
+      );
+      setDetails(updatedDetails);
+    } catch (err) {
+      console.error('Failed to update payments:', err);
+      alert('Failed to update payment status');
+    }
+  };
+
+  const renderProgressMeter = (label: string, collected: number, expected: number) => {
+    const percent = expected > 0 ? Math.min(100, Math.round((collected / expected) * 100)) : 0;
+    return (
+      <div className="space-y-1.5 w-full">
+        <div className="flex justify-between text-xs font-bold">
+          <span className="text-muted-foreground">{label}</span>
+          <span className="text-white">
+            ${collected.toFixed(0)} / ${expected.toFixed(0)} ({percent}%)
+          </span>
+        </div>
+        <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-border/40">
+          <div
+            className="bg-primary h-full transition-all duration-300"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+    );
+  };
 
   async function loadTournament() {
     try {
@@ -1147,6 +1213,18 @@ export default function TournamentDetailPage() {
                 Earnings
               </button>
             )}
+            {(tournament.status === 'active' || tournament.status === 'completed') && (
+              <button
+                onClick={() => setActiveTab('payments')}
+                className={`px-6 py-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+                  activeTab === 'payments'
+                    ? 'border-primary text-primary shadow-[0_4px_10px_-4px_rgba(16,185,129,0.3)]'
+                    : 'border-transparent text-muted-foreground hover:text-white'
+                }`}
+              >
+                Payments
+              </button>
+            )}
           </div>
 
           {/* Group Stage Tab View */}
@@ -1638,6 +1716,323 @@ export default function TournamentDetailPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payments Tab View */}
+      {activeTab === 'payments' && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          {(() => {
+            const allPlayers = players.filter(p => !p.isBye);
+            const numRealPlayers = allPlayers.length;
+            const entryFee = tournament.entryFee || 0;
+            const expectedEntryPool = entryFee * numRealPlayers;
+            const collectedEntryPool = entryFee * (tournament.entryFeePaidIds || []).filter(id => allPlayers.some(p => p.id === id)).length;
+
+            const bids = tournament.calcuttaBids || [];
+            const expectedCalcuttaPool = bids.reduce((sum, b) => sum + b.bidAmount, 0);
+            const collectedCalcuttaPool = bids
+              .filter(b => (tournament.calcuttaBidsPaidIds || []).includes(b.playerId))
+              .reduce((sum, b) => sum + b.bidAmount, 0);
+
+            // Compute expected payouts
+            const earnings = calculateTournamentEarnings(details);
+            const expectedPlayerPayout = earnings.reduce((sum, r) => sum + r.playerPayout, 0);
+            const collectedPlayerPayout = earnings
+              .filter(r => (tournament.playerPayoutPaidIds || []).includes(r.playerId))
+              .reduce((sum, r) => sum + r.playerPayout, 0);
+
+            const expectedOwnerPayout = tournament.hasCalcutta
+              ? earnings.reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare, 0)
+              : 0;
+            const collectedOwnerPayout = tournament.hasCalcutta
+              ? earnings
+                  .filter(r => (tournament.ownerPayoutPaidIds || []).includes(r.playerId))
+                  .reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare, 0)
+              : 0;
+
+            return (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 animate-fade-in">
+                {/* Entry fee progress */}
+                <div className="glass-panel rounded-2xl p-5 shadow-xl flex items-center border border-border/60">
+                  {renderProgressMeter('Entry Fees Collected', collectedEntryPool, expectedEntryPool)}
+                </div>
+
+                {/* Calcutta bids progress */}
+                {tournament.hasCalcutta && (
+                  <div className="glass-panel rounded-2xl p-5 shadow-xl flex items-center border border-border/60">
+                    {renderProgressMeter('Calcutta Bids Collected', collectedCalcuttaPool, expectedCalcuttaPool)}
+                  </div>
+                )}
+
+                {/* Tournament payouts progress */}
+                {tournament.status === 'completed' && (
+                  <div className="glass-panel rounded-2xl p-5 shadow-xl flex items-center border border-border/60">
+                    {renderProgressMeter('Placement Payouts Paid', collectedPlayerPayout, expectedPlayerPayout)}
+                  </div>
+                )}
+
+                {/* Calcutta payouts progress */}
+                {tournament.status === 'completed' && tournament.hasCalcutta && (
+                  <div className="glass-panel rounded-2xl p-5 shadow-xl flex items-center border border-border/60">
+                    {renderProgressMeter('Calcutta Payouts Paid', collectedOwnerPayout, expectedOwnerPayout)}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Section selectors */}
+          <div className="flex flex-wrap bg-slate-900/60 p-1 rounded-xl border border-border/40 self-start gap-1">
+            <button
+              onClick={() => setPaymentCategory('entry')}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                paymentCategory === 'entry'
+                  ? 'bg-primary text-background shadow-md'
+                  : 'text-muted-foreground hover:text-white'
+              }`}
+            >
+              Entry Fees
+            </button>
+            {tournament.hasCalcutta && (
+              <button
+                onClick={() => setPaymentCategory('calcuttaBid')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  paymentCategory === 'calcuttaBid'
+                    ? 'bg-primary text-background shadow-md'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                Calcutta Bids
+              </button>
+            )}
+            {tournament.status === 'completed' && (
+              <button
+                onClick={() => setPaymentCategory('payout')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  paymentCategory === 'payout'
+                    ? 'bg-primary text-background shadow-md'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                Placement Payouts
+              </button>
+            )}
+            {tournament.status === 'completed' && tournament.hasCalcutta && (
+              <button
+                onClick={() => setPaymentCategory('calcuttaPayout')}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  paymentCategory === 'calcuttaPayout'
+                    ? 'bg-primary text-background shadow-md'
+                    : 'text-muted-foreground hover:text-white'
+                }`}
+              >
+                Calcutta Payouts
+              </button>
+            )}
+          </div>
+
+          {/* Payments Table */}
+          <div className="glass-panel rounded-2xl shadow-xl overflow-hidden border border-border/60 animate-fade-in">
+            {paymentCategory === 'entry' && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900/40 border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
+                      <th className="py-4 px-6">Player Name</th>
+                      <th className="py-4 px-6 text-right">Entry Fee</th>
+                      <th className="py-4 px-6 text-center w-24">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/20 text-xs font-bold">
+                    {players.filter(p => !p.isBye).map(p => {
+                      const isPaid = (tournament.entryFeePaidIds || []).includes(p.id);
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="py-4 px-6 text-sm text-white font-black">{p.name}</td>
+                          <td className="py-4 px-6 text-right text-slate-300">${tournament.entryFee || 0}</td>
+                          <td className="py-4 px-6 text-center">
+                            <label className="inline-flex items-center justify-center cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isPaid}
+                                onChange={() => handleTogglePayment('entry', p.id)}
+                                className="rounded accent-primary bg-background border-border h-4 w-4"
+                              />
+                            </label>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {paymentCategory === 'calcuttaBid' && tournament.hasCalcutta && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900/40 border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
+                      <th className="py-4 px-6">Player Purchased</th>
+                      <th className="py-4 px-6">Buyer Name</th>
+                      <th className="py-4 px-6 text-right">Bid Amount</th>
+                      <th className="py-4 px-6 text-center">Split?</th>
+                      <th className="py-4 px-6 text-center w-24">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/20 text-xs font-bold">
+                    {(tournament.calcuttaBids || []).map(bid => {
+                      const pName = players.find(p => p.id === bid.playerId)?.name || 'Unknown';
+                      const isPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
+                      return (
+                        <tr key={bid.playerId} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="py-4 px-6 text-sm text-white font-black">{pName}</td>
+                          <td className="py-4 px-6 text-slate-300">{bid.buyerName}</td>
+                          <td className="py-4 px-6 text-right text-slate-300">${bid.bidAmount}</td>
+                          <td className="py-4 px-6 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                              bid.split ? 'bg-primary/15 text-primary' : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {bid.split ? 'YES' : 'NO'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-center">
+                            <label className="inline-flex items-center justify-center cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isPaid}
+                                onChange={() => handleTogglePayment('calcuttaBid', bid.playerId)}
+                                className="rounded accent-primary bg-background border-border h-4 w-4"
+                              />
+                            </label>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {paymentCategory === 'payout' && tournament.status === 'completed' && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900/40 border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
+                      <th className="py-4 px-6 text-center w-16">Rank</th>
+                      <th className="py-4 px-6">Player Name</th>
+                      <th className="py-4 px-6 text-right">Payout Due</th>
+                      <th className="py-4 px-6 text-center w-24">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/20 text-xs font-bold">
+                    {(() => {
+                      const earnings = calculateTournamentEarnings(details).filter(e => e.playerPayout > 0);
+                      return earnings.map(row => {
+                        const isPaid = (tournament.playerPayoutPaidIds || []).includes(row.playerId);
+                        return (
+                          <tr key={row.playerId} className="hover:bg-slate-800/20 transition-colors">
+                            <td className="py-4 px-6 text-center text-muted-foreground">
+                              {row.rank === 1 ? '1st' : row.rank === 2 ? '2nd' : `${row.rank}th`}
+                            </td>
+                            <td className="py-4 px-6 text-sm text-white font-black">{row.playerName}</td>
+                            <td className="py-4 px-6 text-right text-emerald-400">${row.playerPayout.toFixed(0)}</td>
+                            <td className="py-4 px-6 text-center">
+                              <label className="inline-flex items-center justify-center cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={isPaid}
+                                  onChange={() => handleTogglePayment('payout', row.playerId)}
+                                  className="rounded accent-primary bg-background border-border h-4 w-4"
+                                />
+                              </label>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {paymentCategory === 'calcuttaPayout' && tournament.status === 'completed' && tournament.hasCalcutta && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900/40 border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
+                      <th className="py-4 px-6">Purchased Player</th>
+                      <th className="py-4 px-6">Recipient Name</th>
+                      <th className="py-4 px-6">Type</th>
+                      <th className="py-4 px-6 text-right">Payout Due</th>
+                      <th className="py-4 px-6 text-center w-24">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/20 text-xs font-bold">
+                    {(() => {
+                      const earnings = calculateTournamentEarnings(details).filter(e => e.calcuttaPayout > 0);
+                      const rows: { key: string; playerName: string; recipientName: string; type: string; amount: number; isPaid: boolean; pId: string }[] = [];
+                      
+                      earnings.forEach(e => {
+                        const isPaid = (tournament.ownerPayoutPaidIds || []).includes(e.playerId);
+                        if (e.hasCalcuttaSplit) {
+                          rows.push({
+                            key: `${e.playerId}-owner`,
+                            playerName: e.playerName,
+                            recipientName: e.calcuttaOwner,
+                            type: 'Owner (50%)',
+                            amount: e.ownerCalcuttaShare,
+                            isPaid,
+                            pId: e.playerId,
+                          });
+                          rows.push({
+                            key: `${e.playerId}-player`,
+                            playerName: e.playerName,
+                            recipientName: e.playerName,
+                            type: 'Player (50%)',
+                            amount: e.playerCalcuttaShare,
+                            isPaid,
+                            pId: e.playerId,
+                          });
+                        } else {
+                          rows.push({
+                            key: `${e.playerId}-owner`,
+                            playerName: e.playerName,
+                            recipientName: e.calcuttaOwner,
+                            type: 'Owner (100%)',
+                            amount: e.ownerCalcuttaShare,
+                            isPaid,
+                            pId: e.playerId,
+                          });
+                        }
+                      });
+
+                      return rows.map(row => (
+                        <tr key={row.key} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="py-4 px-6 text-sm text-white font-black">{row.playerName}</td>
+                          <td className="py-4 px-6 text-slate-200">{row.recipientName}</td>
+                          <td className="py-4 px-6 text-muted-foreground">{row.type}</td>
+                          <td className="py-4 px-6 text-right text-emerald-400">${row.amount.toFixed(0)}</td>
+                          <td className="py-4 px-6 text-center">
+                            <label className="inline-flex items-center justify-center cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={row.isPaid}
+                                onChange={() => handleTogglePayment('calcuttaPayout', row.pId)}
+                                className="rounded accent-primary bg-background border-border h-4 w-4"
+                              />
+                            </label>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
