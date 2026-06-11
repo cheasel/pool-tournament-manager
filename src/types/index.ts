@@ -34,6 +34,10 @@ export interface Tournament {
   calcuttaMinIncrement?: number;
   calcuttaPayoutPercentages?: number[];
   calcuttaBids?: CalcuttaBid[];
+  entryFeePaidIds?: string[];
+  calcuttaBidsPaidIds?: string[];
+  playerPayoutPaidIds?: string[];
+  ownerPayoutPaidIds?: string[];
 }
 
 export interface Group {
