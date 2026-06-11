@@ -931,9 +931,23 @@ export default function TournamentDetailPage() {
                             <div className="grid gap-4 sm:grid-cols-3 bg-slate-950/60 p-4 rounded-xl border border-border/15 text-xs">
                               {/* Buyer Name */}
                               <div>
-                                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                                  Owner / Buyer
-                                </label>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    Owner / Buyer
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const player = shuffledRoster[currentRosterIdx];
+                                      if (player) {
+                                        setActiveBuyerName(player.name);
+                                      }
+                                    }}
+                                    className="text-[9px] font-bold text-primary hover:underline cursor-pointer select-none"
+                                  >
+                                    Self Buy
+                                  </button>
+                                </div>
                                 <input
                                   type="text"
                                   value={activeBuyerName}
@@ -1121,13 +1135,22 @@ export default function TournamentDetailPage() {
                                     <div className="min-w-0">
                                       <p className="font-bold text-white truncate text-[11px]">{player.name}</p>
                                       <div className="flex gap-2 items-center text-[10px]">
-                                        <input
-                                          type="text"
-                                          value={bid.buyerName}
-                                          onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
-                                          className="bg-transparent text-[10px] text-muted-foreground w-20 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold"
-                                          placeholder="Edit Buyer"
-                                        />
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="text"
+                                            value={bid.buyerName}
+                                            onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
+                                            className="bg-transparent text-[10px] text-muted-foreground w-18 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold"
+                                            placeholder="Edit Buyer"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => updateBidValue(player.id, 'buyerName', player.name)}
+                                            className="text-[8px] font-extrabold bg-slate-900 border border-border/40 text-primary px-1 py-0.5 rounded hover:bg-border cursor-pointer select-none"
+                                          >
+                                            Self
+                                          </button>
+                                        </div>
                                         <span className="text-[10px] text-muted-foreground/40">•</span>
                                         <select
                                           value={bid.split ? 'YES' : 'NO'}
