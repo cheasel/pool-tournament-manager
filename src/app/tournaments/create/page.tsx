@@ -8,12 +8,10 @@ import { Trophy, Users, CheckSquare, Square, ChevronRight, Info, Coins } from 'l
 
 const PAYOUT_PRESETS: Record<number, number[]> = {
   2: [70, 30],
-  3: [50, 30, 20],
   4: [40, 30, 20, 10],
-  5: [35, 25, 20, 12, 8],
-  6: [30, 22, 18, 14, 10, 6],
-  7: [28, 20, 16, 13, 10, 8, 5],
   8: [25, 18, 15, 12, 10, 8, 7, 5],
+  16: [20, 14, 9, 9, 6, 6, 6, 6, 3, 3, 3, 3, 3, 3, 3, 3],
+  32: [28, 12, 6, 6, 4, 4, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 };
 
 export default function CreateTournamentPage() {
@@ -27,14 +25,14 @@ export default function CreateTournamentPage() {
   const [error, setError] = useState('');
 
   const [entryFee, setEntryFee] = useState<number>(0);
-  const [payoutPositions, setPayoutPositions] = useState<number>(3);
-  const [payoutPercentages, setPayoutPercentages] = useState<number[]>([50, 30, 20]);
+  const [payoutPositions, setPayoutPositions] = useState<number>(4);
+  const [payoutPercentages, setPayoutPercentages] = useState<number[]>([40, 30, 20, 10]);
 
   const [hasCalcutta, setHasCalcutta] = useState<boolean>(false);
   const [calcuttaMinStartBet, setCalcuttaMinStartBet] = useState<number>(10);
   const [calcuttaMinIncrement, setCalcuttaMinIncrement] = useState<number>(5);
-  const [calcuttaPayoutPositions, setCalcuttaPayoutPositions] = useState<number>(3);
-  const [calcuttaPayoutPercentages, setCalcuttaPayoutPercentages] = useState<number[]>([50, 30, 20]);
+  const [calcuttaPayoutPositions, setCalcuttaPayoutPositions] = useState<number>(4);
+  const [calcuttaPayoutPercentages, setCalcuttaPayoutPercentages] = useState<number[]>([40, 30, 20, 10]);
 
   const db = getDatabaseAdapter();
 
@@ -71,7 +69,10 @@ export default function CreateTournamentPage() {
 
   const handlePayoutPositionsChange = (num: number) => {
     setPayoutPositions(num);
-    setPayoutPercentages(PAYOUT_PRESETS[num] || Array(num).fill(Math.floor(100 / num)));
+    const preset = PAYOUT_PRESETS[num] || Array(num).fill(Math.floor(100 / num));
+    setPayoutPercentages(preset);
+    setCalcuttaPayoutPositions(num);
+    setCalcuttaPayoutPercentages(preset);
   };
 
   const handlePercentageChange = (index: number, val: number) => {
@@ -223,15 +224,15 @@ export default function CreateTournamentPage() {
             {/* Payout Positions Selection */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Paid Positions (2-8)
+                Paid Positions
               </label>
               <div className="flex items-center gap-1 justify-between bg-background p-1 border border-border rounded-lg">
-                {[2, 3, 4, 5, 6, 7, 8].map(num => (
+                {[2, 4, 8, 16, 32].map(num => (
                   <button
                     key={num}
                     type="button"
                     onClick={() => handlePayoutPositionsChange(num)}
-                    className={`h-7 w-7 rounded font-extrabold text-[10px] cursor-pointer transition-all flex items-center justify-center ${
+                    className={`h-7 w-9 rounded font-extrabold text-[10px] cursor-pointer transition-all flex items-center justify-center ${
                       payoutPositions === num
                         ? 'bg-primary text-background'
                         : 'text-muted-foreground hover:text-white hover:bg-border/30'
@@ -329,28 +330,6 @@ export default function CreateTournamentPage() {
                       onChange={e => setCalcuttaMinIncrement(Math.max(1, parseInt(e.target.value) || 0))}
                       className="w-full rounded-lg bg-background border border-border px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary transition-colors font-bold"
                     />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Calcutta Paid Positions (2-8)
-                  </label>
-                  <div className="flex items-center gap-1 justify-between bg-background p-1 border border-border rounded-lg">
-                    {[2, 3, 4, 5, 6, 7, 8].map(num => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => handleCalcuttaPayoutPositionsChange(num)}
-                        className={`h-6 w-6 rounded font-extrabold text-[9px] cursor-pointer transition-all flex items-center justify-center ${
-                          calcuttaPayoutPositions === num
-                            ? 'bg-primary text-background'
-                            : 'text-muted-foreground hover:text-white hover:bg-border/30'
-                        }`}
-                      >
-                        {num}
-                      </button>
-                    ))}
                   </div>
                 </div>
 
