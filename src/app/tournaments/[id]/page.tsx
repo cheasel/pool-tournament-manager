@@ -943,7 +943,7 @@ export default function TournamentDetailPage() {
                                         setActiveBuyerName(player.name);
                                       }
                                     }}
-                                    className="text-[9px] font-bold text-primary hover:underline cursor-pointer select-none"
+                                    className="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px] font-extrabold uppercase hover:bg-primary hover:text-background transition-all duration-200 cursor-pointer select-none"
                                   >
                                     Self Buy
                                   </button>
@@ -1146,7 +1146,7 @@ export default function TournamentDetailPage() {
                                           <button
                                             type="button"
                                             onClick={() => updateBidValue(player.id, 'buyerName', player.name)}
-                                            className="text-[8px] font-extrabold bg-slate-900 border border-border/40 text-primary px-1 py-0.5 rounded hover:bg-border cursor-pointer select-none"
+                                            className="px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[9px] font-black uppercase hover:bg-primary hover:text-background transition-all duration-200 cursor-pointer select-none shrink-0"
                                           >
                                             Self
                                           </button>
