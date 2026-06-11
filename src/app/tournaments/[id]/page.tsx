@@ -45,7 +45,8 @@ export default function TournamentDetailPage() {
 
   const handleTogglePayment = async (
     category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout',
-    targetId: string
+    targetId: string | string[],
+    forceState?: 'paid' | 'unpaid'
   ) => {
     if (!details) return;
 
@@ -54,22 +55,50 @@ export default function TournamentDetailPage() {
     const playerPayoutPaidIds = [...(details.tournament.playerPayoutPaidIds || [])];
     const ownerPayoutPaidIds = [...(details.tournament.ownerPayoutPaidIds || [])];
 
-    if (category === 'entry') {
-      const idx = entryFeePaidIds.indexOf(targetId);
-      if (idx > -1) entryFeePaidIds.splice(idx, 1);
-      else entryFeePaidIds.push(targetId);
-    } else if (category === 'calcuttaBid') {
-      const idx = calcuttaBidsPaidIds.indexOf(targetId);
-      if (idx > -1) calcuttaBidsPaidIds.splice(idx, 1);
-      else calcuttaBidsPaidIds.push(targetId);
-    } else if (category === 'payout') {
-      const idx = playerPayoutPaidIds.indexOf(targetId);
-      if (idx > -1) playerPayoutPaidIds.splice(idx, 1);
-      else playerPayoutPaidIds.push(targetId);
-    } else if (category === 'calcuttaPayout') {
-      const idx = ownerPayoutPaidIds.indexOf(targetId);
-      if (idx > -1) ownerPayoutPaidIds.splice(idx, 1);
-      else ownerPayoutPaidIds.push(targetId);
+    const targets = Array.isArray(targetId) ? targetId : [targetId];
+
+    for (const t of targets) {
+      if (category === 'entry') {
+        const idx = entryFeePaidIds.indexOf(t);
+        if (forceState === 'paid') {
+          if (idx === -1) entryFeePaidIds.push(t);
+        } else if (forceState === 'unpaid') {
+          if (idx > -1) entryFeePaidIds.splice(idx, 1);
+        } else {
+          if (idx > -1) entryFeePaidIds.splice(idx, 1);
+          else entryFeePaidIds.push(t);
+        }
+      } else if (category === 'calcuttaBid') {
+        const idx = calcuttaBidsPaidIds.indexOf(t);
+        if (forceState === 'paid') {
+          if (idx === -1) calcuttaBidsPaidIds.push(t);
+        } else if (forceState === 'unpaid') {
+          if (idx > -1) calcuttaBidsPaidIds.splice(idx, 1);
+        } else {
+          if (idx > -1) calcuttaBidsPaidIds.splice(idx, 1);
+          else calcuttaBidsPaidIds.push(t);
+        }
+      } else if (category === 'payout') {
+        const idx = playerPayoutPaidIds.indexOf(t);
+        if (forceState === 'paid') {
+          if (idx === -1) playerPayoutPaidIds.push(t);
+        } else if (forceState === 'unpaid') {
+          if (idx > -1) playerPayoutPaidIds.splice(idx, 1);
+        } else {
+          if (idx > -1) playerPayoutPaidIds.splice(idx, 1);
+          else playerPayoutPaidIds.push(t);
+        }
+      } else if (category === 'calcuttaPayout') {
+        const idx = ownerPayoutPaidIds.indexOf(t);
+        if (forceState === 'paid') {
+          if (idx === -1) ownerPayoutPaidIds.push(t);
+        } else if (forceState === 'unpaid') {
+          if (idx > -1) ownerPayoutPaidIds.splice(idx, 1);
+        } else {
+          if (idx > -1) ownerPayoutPaidIds.splice(idx, 1);
+          else ownerPayoutPaidIds.push(t);
+        }
+      }
     }
 
     try {

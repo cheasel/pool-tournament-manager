@@ -9,7 +9,7 @@ interface PaymentsTabProps {
   players: Player[];
   paymentCategory: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout';
   setPaymentCategory: (cat: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout') => void;
-  onTogglePayment: (category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout', targetId: string) => Promise<void>;
+  onTogglePayment: (category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout', targetId: string | string[], forceState?: 'paid' | 'unpaid') => Promise<void>;
   renderProgressMeter: (label: string, collected: number, expected: number) => React.ReactNode;
 }
 
@@ -168,51 +168,104 @@ export default function PaymentsTab({
           </div>
         )}
 
-        {paymentCategory === 'calcuttaBid' && tournament.hasCalcutta && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-900/40 border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
-                  <th className="py-4 px-6">Player Purchased</th>
-                  <th className="py-4 px-6">Buyer Name</th>
-                  <th className="py-4 px-6 text-right">Bid Amount</th>
-                  <th className="py-4 px-6 text-center">Split?</th>
-                  <th className="py-4 px-6 text-center w-24">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/20 text-xs font-bold">
-                {(tournament.calcuttaBids || []).map(bid => {
-                  const pName = players.find(p => p.id === bid.playerId)?.name || 'Unknown';
-                  const isPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
-                  return (
-                    <tr key={bid.playerId} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="py-4 px-6 text-sm text-white font-black">{pName}</td>
-                      <td className="py-4 px-6 text-slate-300">{bid.buyerName}</td>
-                      <td className="py-4 px-6 text-right text-slate-300">${bid.bidAmount}</td>
-                      <td className="py-4 px-6 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                          bid.split ? 'bg-primary/15 text-primary' : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          {bid.split ? 'YES' : 'NO'}
-                        </span>
+        {paymentCategory === 'calcuttaBid' && tournament.hasCalcutta && (() => {
+          const personMap: Record<string, { expected: number; paid: number; associatedPlayerIds: string[] }> = {};
+          
+          (tournament.calcuttaBids || []).forEach(bid => {
+            const pName = players.find(p => p.id === bid.playerId)?.name || 'Unknown';
+            const buyerName = bid.buyerName.trim() || 'Player (Self)';
+            const resolvedBuyer = buyerName === 'Player (Self)' ? pName : buyerName;
+            const isPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
+            
+            if (bid.split) {
+              const halfAmount = bid.bidAmount / 2;
+              
+              if (!personMap[pName]) personMap[pName] = { expected: 0, paid: 0, associatedPlayerIds: [] };
+              personMap[pName].expected += halfAmount;
+              if (isPaid) personMap[pName].paid += halfAmount;
+              if (!personMap[pName].associatedPlayerIds.includes(bid.playerId)) {
+                personMap[pName].associatedPlayerIds.push(bid.playerId);
+              }
+              
+              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedPlayerIds: [] };
+              personMap[resolvedBuyer].expected += halfAmount;
+              if (isPaid) personMap[resolvedBuyer].paid += halfAmount;
+              if (!personMap[resolvedBuyer].associatedPlayerIds.includes(bid.playerId)) {
+                personMap[resolvedBuyer].associatedPlayerIds.push(bid.playerId);
+              }
+            } else {
+              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedPlayerIds: [] };
+              personMap[resolvedBuyer].expected += bid.bidAmount;
+              if (isPaid) personMap[resolvedBuyer].paid += bid.bidAmount;
+              if (!personMap[resolvedBuyer].associatedPlayerIds.includes(bid.playerId)) {
+                personMap[resolvedBuyer].associatedPlayerIds.push(bid.playerId);
+              }
+            }
+          });
+
+          const consolidatedList = Object.entries(personMap).map(([name, val]) => {
+            const remaining = val.expected - val.paid;
+            const isAllPaid = val.associatedPlayerIds.every(id => (tournament.calcuttaBidsPaidIds || []).includes(id));
+            return {
+              name,
+              expected: val.expected,
+              paid: val.paid,
+              remaining,
+              associatedPlayerIds: val.associatedPlayerIds,
+              isAllPaid,
+            };
+          }).sort((a, b) => {
+            if (b.remaining !== a.remaining) {
+              return b.remaining - a.remaining;
+            }
+            return a.name.localeCompare(b.name);
+          });
+
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-900/40 border-b border-border text-[10px] font-black uppercase text-muted-foreground tracking-wider">
+                    <th className="py-4 px-6">Person Name</th>
+                    <th className="py-4 px-6 text-right">Total Owed</th>
+                    <th className="py-4 px-6 text-right">Total Paid</th>
+                    <th className="py-4 px-6 text-right">Remaining Balance</th>
+                    <th className="py-4 px-6 text-center w-24">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/20 text-xs font-bold">
+                  {consolidatedList.map(item => (
+                    <tr key={item.name} className="hover:bg-slate-800/20 transition-colors">
+                      <td className="py-4 px-6 text-sm text-white font-black">{item.name}</td>
+                      <td className="py-4 px-6 text-right text-slate-300">${item.expected.toFixed(0)}</td>
+                      <td className="py-4 px-6 text-right text-emerald-400">${item.paid.toFixed(0)}</td>
+                      <td className={`py-4 px-6 text-right ${item.remaining > 0 ? 'text-primary' : 'text-slate-400'}`}>
+                        ${item.remaining.toFixed(0)}
                       </td>
                       <td className="py-4 px-6 text-center">
                         <label className="inline-flex items-center justify-center cursor-pointer select-none">
                           <input
                             type="checkbox"
-                            checked={isPaid}
-                            onChange={() => onTogglePayment('calcuttaBid', bid.playerId)}
+                            checked={item.isAllPaid}
+                            onChange={() => onTogglePayment('calcuttaBid', item.associatedPlayerIds, item.isAllPaid ? 'unpaid' : 'paid')}
                             className="rounded accent-primary bg-background border-border h-4 w-4"
                           />
                         </label>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  ))}
+                  {consolidatedList.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                        No Calcutta bids recorded yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
 
         {paymentCategory === 'payout' && tournament.status === 'completed' && (
           <div className="overflow-x-auto">
