@@ -643,16 +643,16 @@ export default function TournamentDetailPage() {
                 const renderRosterTable = (rosterList: Player[], offset: number) => {
                   return (
                     <div className="w-full overflow-hidden">
-                      <table className="w-full text-[9px] xl:text-[10px] text-left border-collapse table-layout-fixed">
+                      <table className="w-full text-[11px] xl:text-xs text-left border-collapse table-layout-fixed">
                         <thead>
-                          <tr className="text-[8px] xl:text-[9px] text-muted-foreground uppercase font-extrabold border-b border-border/40">
-                            <th className="py-1.5 px-0.5 text-center font-bold w-[8%]">#</th>
-                            <th className="py-1.5 px-0.5 w-[28%]">Player</th>
-                            <th className="py-1.5 px-0.5 text-center font-bold w-[10%]">HC</th>
-                            <th className="py-1.5 px-0.5 w-[20%]">Owner</th>
-                            <th className="py-1.5 px-0.5 text-right w-[14%]">BID</th>
-                            <th className="py-1.5 px-0.5 text-center w-[10%]">Split</th>
-                            <th className="py-1.5 px-0.5 text-center w-[10%]">Stat</th>
+                          <tr className="text-[10px] xl:text-[11px] text-muted-foreground uppercase font-extrabold border-b border-border/40">
+                            <th className="py-2 px-0.5 text-center font-bold w-[8%]">#</th>
+                            <th className="py-2 px-0.5 w-[26%]">Player</th>
+                            <th className="py-2 px-0.5 text-center font-bold w-[10%]">HC</th>
+                            <th className="py-2 px-0.5 w-[22%]">Owner</th>
+                            <th className="py-2 px-0.5 text-right w-[14%]">BID</th>
+                            <th className="py-2 px-0.5 text-center w-[10%]">Split</th>
+                            <th className="py-2 px-0.5 text-center w-[10%]">Stat</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/10">
@@ -679,28 +679,28 @@ export default function TournamentDetailPage() {
 
                             return (
                               <tr key={player.id} className={rowClass}>
-                                <td className="py-1.5 px-0.5 font-bold text-muted-foreground text-center">
-                                  <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[8px] font-black bg-slate-950 border border-border/40 text-slate-300">
+                                <td className="py-2 px-0.5 font-bold text-muted-foreground text-center">
+                                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8.5px] font-black bg-slate-950 border border-border/40 text-slate-300">
                                     {absoluteIdx + 1}
                                   </span>
                                 </td>
-                                <td className="py-1.5 px-0.5 font-bold text-white truncate max-w-0" title={player.name}>
+                                <td className="py-2 px-0.5 font-bold text-white truncate max-w-0" title={player.name}>
                                   {player.name}
                                 </td>
-                                <td className="py-1.5 px-0.5 text-center font-extrabold text-muted-foreground">
+                                <td className="py-2 px-0.5 text-center font-extrabold text-muted-foreground">
                                   A{sl}
                                 </td>
-                                <td className="py-1.5 px-0.5 truncate max-w-0 font-semibold text-slate-200" title={isSold ? (bid?.buyerName || 'Player') : '-'}>
+                                <td className="py-2 px-0.5 truncate max-w-0 font-semibold text-slate-200" title={isSold ? (bid?.buyerName || 'Player') : '-'}>
                                   {isSold ? (bid?.buyerName || 'Player') : '-'}
                                 </td>
-                                <td className="py-1.5 px-0.5 text-right font-black text-emerald-400">
+                                <td className="py-2 px-0.5 text-right font-black text-emerald-400">
                                   {isSold ? `$${bid?.bidAmount || 0}` : '-'}
                                 </td>
-                                <td className="py-1.5 px-0.5 text-center font-extrabold text-slate-400">
+                                <td className="py-2 px-0.5 text-center font-extrabold text-slate-400">
                                   {isSold ? (bid?.split ? 'YES' : 'NO') : '-'}
                                 </td>
-                                <td className="py-1.5 px-0.5 text-center">
-                                  <span className={`inline-block px-0.5 py-0 rounded-[3px] text-[7.5px] font-black leading-tight border ${statusClass}`}>
+                                <td className="py-2 px-0.5 text-center">
+                                  <span className={`inline-block px-1 py-0.5 rounded text-[8px] font-black leading-tight border ${statusClass}`}>
                                     {statusLabel}
                                   </span>
                                 </td>
