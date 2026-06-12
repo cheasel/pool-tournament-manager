@@ -45,6 +45,10 @@ export interface DatabaseAdapter {
     player2Id: string
   ): Promise<TournamentDetails>;
   deletePlayer(id: string): Promise<void>;
+  updatePlayer(
+    id: string,
+    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>
+  ): Promise<Player>;
 }
 
 // ----------------------------------------------------
@@ -522,6 +526,27 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
   async deletePlayer(id: string): Promise<void> {
     const currentPlayers = this.getStorageItem<Player[]>('ptm_players', []);
     this.setStorageItem('ptm_players', currentPlayers.filter(p => p.id !== id));
+  }
+
+  async updatePlayer(
+    id: string,
+    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>
+  ): Promise<Player> {
+    const currentPlayers = this.getStorageItem<Player[]>('ptm_players', []);
+    const idx = currentPlayers.findIndex(p => p.id === id);
+    if (idx === -1) throw new Error('Player not found');
+
+    const updated = {
+      ...currentPlayers[idx],
+      name: player.name,
+      skillLevel8: player.skillLevel8,
+      skillLevel9: player.skillLevel9,
+      skillLevel10: player.skillLevel10,
+    };
+
+    currentPlayers[idx] = updated;
+    this.setStorageItem('ptm_players', currentPlayers);
+    return updated;
   }
 }
 
@@ -1256,6 +1281,38 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase deletePlayer failed, falling back to LocalStorage', e);
       await localStorageAdapter.deletePlayer(id);
+    }
+  }
+
+  async updatePlayer(
+    id: string,
+    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>
+  ): Promise<Player> {
+    try {
+      const { data, error } = await this.client
+        .from('players')
+        .update({
+          name: player.name,
+          skill_level_8: player.skillLevel8,
+          skill_level_9: player.skillLevel9,
+          skill_level_10: player.skillLevel10,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        name: data.name,
+        skillLevel8: data.skill_level_8,
+        skillLevel9: data.skill_level_9,
+        skillLevel10: data.skill_level_10,
+        createdAt: data.created_at,
+      };
+    } catch (e) {
+      console.warn('Supabase updatePlayer failed, falling back to LocalStorage', e);
+      return localStorageAdapter.updatePlayer(id, player);
     }
   }
 }

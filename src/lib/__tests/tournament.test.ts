@@ -445,5 +445,38 @@ describe('Bracket Engine Tests', () => {
     list = await db.getPlayers();
     expect(list.some(p => p.id === player.id)).toBe(false);
   });
+
+  it('creates a new player and updates their details successfully', async () => {
+    const db = getDatabaseAdapter();
+    const player = await db.createPlayer({
+      name: 'Old Name',
+      skillLevel8: 10,
+      skillLevel9: 10,
+      skillLevel10: 10,
+    });
+
+    expect(player.name).toBe('Old Name');
+
+    // Update details
+    const updated = await db.updatePlayer(player.id, {
+      name: 'New Name',
+      skillLevel8: 12,
+      skillLevel9: 13,
+      skillLevel10: 14,
+    });
+
+    expect(updated.name).toBe('New Name');
+    expect(updated.skillLevel8).toBe(12);
+    expect(updated.skillLevel9).toBe(13);
+    expect(updated.skillLevel10).toBe(14);
+
+    // Verify it changed in database listing
+    const list = await db.getPlayers();
+    const found = list.find(p => p.id === player.id);
+    expect(found?.name).toBe('New Name');
+
+    // Clean up
+    await db.deletePlayer(player.id);
+  });
 });
 
