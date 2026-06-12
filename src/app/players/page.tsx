@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player } from '@/types';
 import { getDatabaseAdapter } from '@/lib/db';
-import { Search, Plus, User, Info, Lock, Trash2 } from 'lucide-react';
+import { Search, Plus, User, Info, Lock, Trash2, Edit3 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function PlayersPage() {
@@ -18,6 +18,22 @@ export default function PlayersPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+
+  // Sync inputs with edit player details
+  useEffect(() => {
+    if (editingPlayer) {
+      setName(editingPlayer.name);
+      setSl8(editingPlayer.skillLevel8);
+      setSl9(editingPlayer.skillLevel9);
+      setSl10(editingPlayer.skillLevel10);
+    } else {
+      setName('');
+      setSl8(10);
+      setSl9(10);
+      setSl10(10);
+    }
+  }, [editingPlayer]);
 
   const db = getDatabaseAdapter();
 
@@ -48,23 +64,34 @@ export default function PlayersPage() {
     setMessage('');
 
     try {
-      const newPlayer = await db.createPlayer({
-        name: name.trim(),
-        skillLevel8: sl8,
-        skillLevel9: sl9,
-        skillLevel10: sl10,
-      });
-
-      setPlayers(prev => [newPlayer, ...prev]);
-      setName('');
-      setSl8(10);
-      setSl9(10);
-      setSl10(10);
-      setMessage(`Successfully registered ${newPlayer.name}!`);
+      if (editingPlayer) {
+        const updated = await db.updatePlayer(editingPlayer.id, {
+          name: name.trim(),
+          skillLevel8: sl8,
+          skillLevel9: sl9,
+          skillLevel10: sl10,
+        });
+        setPlayers(prev => prev.map(p => p.id === updated.id ? updated : p));
+        setEditingPlayer(null);
+        setMessage(`Successfully updated ${updated.name}!`);
+      } else {
+        const newPlayer = await db.createPlayer({
+          name: name.trim(),
+          skillLevel8: sl8,
+          skillLevel9: sl9,
+          skillLevel10: sl10,
+        });
+        setPlayers(prev => [newPlayer, ...prev]);
+        setName('');
+        setSl8(10);
+        setSl9(10);
+        setSl10(10);
+        setMessage(`Successfully registered ${newPlayer.name}!`);
+      }
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       console.error(err);
-      setError('Failed to register player');
+      setError(editingPlayer ? 'Failed to update player' : 'Failed to register player');
     }
   };
 
@@ -138,11 +165,17 @@ export default function PlayersPage() {
             <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Plus className="h-5 w-5 text-primary" />
-                  Register New Player
+                  {editingPlayer ? (
+                    <Edit3 className="h-5 w-5 text-billiard-blue shrink-0" />
+                  ) : (
+                    <Plus className="h-5 w-5 text-primary shrink-0" />
+                  )}
+                  {editingPlayer ? 'Edit Player Details' : 'Register New Player'}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Add players to the system to make them available for tournament selection.
+                  {editingPlayer
+                    ? `Modify name or handicap configurations for ${editingPlayer.name}.`
+                    : 'Add players to the system to make them available for tournament selection.'}
                 </p>
               </div>
 
@@ -229,12 +262,23 @@ export default function PlayersPage() {
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  className="w-full rounded-lg bg-primary py-3 text-sm font-bold text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all cursor-pointer"
-                >
-                  Register Player
-                </button>
+                <div className="flex gap-2">
+                  {editingPlayer && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingPlayer(null)}
+                      className="flex-1 rounded-lg bg-slate-900 border border-border py-3 text-sm font-bold text-white hover:bg-slate-800 transition-all cursor-pointer font-bold select-none"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-lg bg-primary py-3 text-sm font-bold text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all cursor-pointer"
+                  >
+                    {editingPlayer ? 'Save Changes' : 'Register Player'}
+                  </button>
+                </div>
               </form>
             </div>
           )}
@@ -291,14 +335,26 @@ export default function PlayersPage() {
                     </div>
                   </div>
                   {isSuperAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePlayer(player.id, player.name)}
-                      className="p-2 rounded-lg bg-billiard-red/10 border border-billiard-red/25 text-billiard-red hover:bg-billiard-red hover:text-white hover:shadow-[0_0_8px_rgba(239,68,68,0.3)] transition-all cursor-pointer select-none shrink-0"
-                      title="Delete Player"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex gap-1.5 shrink-0 ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => setEditingPlayer(player)}
+                        className={`p-2 rounded-lg bg-billiard-blue/10 border border-billiard-blue/25 text-billiard-blue hover:bg-billiard-blue hover:text-white hover:shadow-[0_0_8px_rgba(59,130,246,0.3)] transition-all cursor-pointer select-none ${
+                          editingPlayer?.id === player.id ? 'ring-2 ring-primary bg-billiard-blue/30 text-white' : ''
+                        }`}
+                        title="Edit Player"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePlayer(player.id, player.name)}
+                        className="p-2 rounded-lg bg-billiard-red/10 border border-billiard-red/25 text-billiard-red hover:bg-billiard-red hover:text-white hover:shadow-[0_0_8px_rgba(239,68,68,0.3)] transition-all cursor-pointer select-none"
+                        title="Delete Player"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
