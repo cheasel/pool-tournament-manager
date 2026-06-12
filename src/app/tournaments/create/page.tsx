@@ -34,7 +34,50 @@ export default function CreateTournamentPage() {
   const [calcuttaPayoutPositions, setCalcuttaPayoutPositions] = useState<number>(4);
   const [calcuttaPayoutPercentages, setCalcuttaPayoutPercentages] = useState<number[]>([40, 30, 20, 10]);
 
+  // Inline player creation states
+  const [showAddPlayerForm, setShowAddPlayerForm] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newSl8, setNewSl8] = useState(4);
+  const [newSl9, setNewSl9] = useState(4);
+  const [newSl10, setNewSl10] = useState(4);
+  const [inlineError, setInlineError] = useState('');
+
   const db = getDatabaseAdapter();
+
+  const handleAddPlayerInline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInlineError('');
+
+    if (!newPlayerName.trim()) {
+      setInlineError('Player name is required');
+      return;
+    }
+
+    try {
+      const newPlayer = await db.createPlayer({
+        name: newPlayerName.trim(),
+        skillLevel8: newSl8,
+        skillLevel9: newSl9,
+        skillLevel10: newSl10,
+      });
+
+      // Update players list in UI
+      setPlayers(prev => [newPlayer, ...prev]);
+
+      // Auto-select the newly created player
+      setSelectedIds(prev => [...prev, newPlayer.id]);
+
+      // Reset form fields
+      setNewPlayerName('');
+      setNewSl8(4);
+      setNewSl9(4);
+      setNewSl10(4);
+      setShowAddPlayerForm(false);
+    } catch (err) {
+      console.error(err);
+      setInlineError('Failed to register player inline');
+    }
+  };
 
   // Load players
   useEffect(() => {
@@ -433,7 +476,18 @@ export default function CreateTournamentPage() {
                 <Users className="h-5 w-5 text-primary" />
                 Select Roster ({numSelected} selected)
               </h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPlayerForm(!showAddPlayerForm)}
+                  className={`rounded px-2.5 py-1 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    showAddPlayerForm
+                      ? 'bg-billiard-red text-white'
+                      : 'bg-primary text-background hover:bg-primary-hover shadow-md'
+                  }`}
+                >
+                  {showAddPlayerForm ? 'Cancel' : '+ Add Player'}
+                </button>
                 <button
                   type="button"
                   onClick={selectAll}
@@ -450,6 +504,117 @@ export default function CreateTournamentPage() {
                 </button>
               </div>
             </div>
+
+            {showAddPlayerForm && (
+              <form onSubmit={handleAddPlayerInline} className="glass-panel p-4 rounded-xl border border-primary/20 bg-slate-950/40 space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between pb-1.5 border-b border-border/20">
+                  <h3 className="text-xs font-black text-white uppercase tracking-wider">Register New Player</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPlayerForm(false)}
+                    className="text-[10px] font-bold text-muted-foreground hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={newPlayerName}
+                      onChange={e => setNewPlayerName(e.target.value)}
+                      placeholder="e.g. Jeanette Lee"
+                      className="w-full rounded-lg bg-background border border-border/40 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        8-Ball Skill Level: <span className="text-primary font-black">{newSl8}</span>
+                      </label>
+                      <div className="flex gap-1 justify-between bg-background p-0.5 border border-border/40 rounded-lg">
+                        {[2, 3, 4, 5, 6, 7].map(num => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setNewSl8(num)}
+                            className={`h-6 w-7 rounded font-black text-[10px] transition-all flex items-center justify-center cursor-pointer ${
+                              newSl8 === num
+                                ? 'bg-primary text-background'
+                                : 'text-muted-foreground hover:text-white'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        9-Ball Skill Level: <span className="text-primary font-black">{newSl9}</span>
+                      </label>
+                      <div className="flex gap-1 justify-between bg-background p-0.5 border border-border/40 rounded-lg">
+                        {[2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setNewSl9(num)}
+                            className={`h-6 w-6 rounded font-black text-[9px] transition-all flex items-center justify-center cursor-pointer ${
+                              newSl9 === num
+                                ? 'bg-primary text-background'
+                                : 'text-muted-foreground hover:text-white'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        10-Ball Skill Level: <span className="text-primary font-black">{newSl10}</span>
+                      </label>
+                      <div className="flex gap-1 justify-between bg-background p-0.5 border border-border/40 rounded-lg">
+                        {[2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setNewSl10(num)}
+                            className={`h-6 w-6 rounded font-black text-[9px] transition-all flex items-center justify-center cursor-pointer ${
+                              newSl10 === num
+                                ? 'bg-primary text-background'
+                                : 'text-muted-foreground hover:text-white'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {inlineError && (
+                  <div className="rounded bg-billiard-red/10 border border-billiard-red/20 p-2 text-[10px] text-billiard-red font-bold animate-pulse">
+                    {inlineError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full rounded-lg bg-primary py-2 text-xs font-black text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/10 transition-all cursor-pointer"
+                >
+                  Register & Select Player
+                </button>
+              </form>
+            )}
 
             {loading ? (
               <div className="text-center py-12 text-muted-foreground">
