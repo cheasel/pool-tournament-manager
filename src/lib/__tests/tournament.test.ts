@@ -418,5 +418,32 @@ describe('Bracket Engine Tests', () => {
     // Clean up
     await db.deleteTournament(tournament.id);
   });
+
+  it('creates a new player and deletes them successfully', async () => {
+    const db = getDatabaseAdapter();
+    const playerName = 'Temporary Test Player';
+    
+    // Create new player
+    const player = await db.createPlayer({
+      name: playerName,
+      skillLevel8: 5,
+      skillLevel9: 5,
+      skillLevel10: 5,
+    });
+
+    expect(player).toBeTruthy();
+    expect(player.name).toBe(playerName);
+
+    // Verify player is in database list
+    let list = await db.getPlayers();
+    expect(list.some(p => p.id === player.id)).toBe(true);
+
+    // Delete player
+    await db.deletePlayer(player.id);
+
+    // Verify player is removed from list
+    list = await db.getPlayers();
+    expect(list.some(p => p.id === player.id)).toBe(false);
+  });
 });
 

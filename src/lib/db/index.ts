@@ -44,6 +44,7 @@ export interface DatabaseAdapter {
     player1Id: string,
     player2Id: string
   ): Promise<TournamentDetails>;
+  deletePlayer(id: string): Promise<void>;
 }
 
 // ----------------------------------------------------
@@ -516,6 +517,11 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     this.setStorageItem('ptm_groups', groups);
 
     return details;
+  }
+
+  async deletePlayer(id: string): Promise<void> {
+    const currentPlayers = this.getStorageItem<Player[]>('ptm_players', []);
+    this.setStorageItem('ptm_players', currentPlayers.filter(p => p.id !== id));
   }
 }
 
@@ -1237,6 +1243,19 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase swapTournamentPlayers failed, falling back to LocalStorage', e);
       return localStorageAdapter.swapTournamentPlayers(tournamentId, player1Id, player2Id);
+    }
+  }
+
+  async deletePlayer(id: string): Promise<void> {
+    try {
+      const { error } = await this.client
+        .from('players')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Supabase deletePlayer failed, falling back to LocalStorage', e);
+      await localStorageAdapter.deletePlayer(id);
     }
   }
 }
