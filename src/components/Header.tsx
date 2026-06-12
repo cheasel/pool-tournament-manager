@@ -56,17 +56,25 @@ export default function Header() {
               <div className="flex items-center gap-4 border-l border-border pl-6">
                 {isAuthenticated ? (
                   <>
-                    {user?.role === 'super_admin' ? (
-                      <span className="flex items-center gap-1.5 text-xs bg-billiard-orange/10 text-billiard-orange border border-billiard-orange/30 px-2.5 py-1 rounded-full font-bold shadow-[0_0_10px_rgba(249,115,22,0.1)] animate-fade-in">
-                        <Shield className="h-3 w-3" />
-                        Super Admin
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-2 hover:opacity-90 group transition-all duration-200"
+                    >
+                      <span className="text-xs text-slate-300 font-bold group-hover:text-primary transition-colors">
+                        {user?.username}
                       </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary border border-primary/30 px-2.5 py-1 rounded-full font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)] animate-fade-in">
-                        <Shield className="h-3 w-3" />
-                        Admin
-                      </span>
-                    )}
+                      {user?.role === 'super_admin' ? (
+                        <span className="flex items-center gap-1.5 text-[10px] bg-billiard-orange/10 text-billiard-orange border border-billiard-orange/30 px-2.5 py-0.5 rounded-full font-bold shadow-[0_0_10px_rgba(249,115,22,0.1)] animate-fade-in">
+                          <Shield className="h-3 w-3" />
+                          Super Admin
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-[10px] bg-primary/10 text-primary border border-primary/30 px-2.5 py-0.5 rounded-full font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)] animate-fade-in">
+                          <Shield className="h-3 w-3" />
+                          Admin
+                        </span>
+                      )}
+                    </Link>
                     <button
                       onClick={logout}
                       className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-billiard-red transition-colors duration-200 cursor-pointer animate-fade-in"
