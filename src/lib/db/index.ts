@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Player, Tournament, Group, Match, MatchStats, TournamentDetails, CalcuttaBid, HandicapHistoryEntry } from '../../types';
-import { initializeGroupMatches, getGroupQualifiers, seedSingleElimination, advanceDoubleEliminationMatch, advanceKnockoutMatches } from '../bracket';
+import { initializeGroupMatches, getGroupQualifiers, seedSingleElimination, advanceDoubleEliminationMatch, advanceKnockoutMatches, resolveByeMatches } from '../bracket';
+import { calculateMatchHandicap } from '../handicap';
 
 export interface DatabaseAdapter {
   getPlayers(): Promise<Player[]>;
@@ -40,6 +41,11 @@ export interface DatabaseAdapter {
   ): Promise<TournamentDetails>;
   deleteTournament(id: string): Promise<void>;
   swapTournamentPlayers(
+    tournamentId: string,
+    player1Id: string,
+    player2Id: string
+  ): Promise<TournamentDetails>;
+  swapKnockoutPlayers(
     tournamentId: string,
     player1Id: string,
     player2Id: string
@@ -521,6 +527,116 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       return g;
     });
     this.setStorageItem('ptm_groups', groups);
+
+    return details;
+  }
+
+  async swapKnockoutPlayers(
+    tournamentId: string,
+    player1Id: string,
+    player2Id: string
+  ): Promise<TournamentDetails> {
+    const details = await this.getTournamentDetails(tournamentId);
+    if (!details) throw new Error('Tournament not found');
+
+    const knockoutMatches = details.matches.filter(m => m.roundType === 'knockout');
+    if (knockoutMatches.length === 0) throw new Error('Knockout bracket has not been generated');
+
+    // Find the Round 1 knockout matches containing the players
+    const match1 = knockoutMatches.find(m => m.roundNumber === 1 && (m.player1Id === player1Id || m.player2Id === player1Id));
+    const match2 = knockoutMatches.find(m => m.roundNumber === 1 && (m.player1Id === player2Id || m.player2Id === player2Id));
+
+    if (!match1 || !match2) {
+      throw new Error('One or both players not found in Round 1 knockout matches');
+    }
+
+    if (match1.status === 'completed' || match2.status === 'completed') {
+      throw new Error('Cannot swap players in completed matches');
+    }
+
+    // Swap the player IDs
+    if (match1.player1Id === player1Id) {
+      match1.player1Id = player2Id;
+    } else {
+      match1.player2Id = player2Id;
+    }
+
+    if (match2.player1Id === player2Id) {
+      match2.player1Id = player1Id;
+    } else {
+      match2.player2Id = player1Id;
+    }
+
+    const playersMap = details.players.reduce((acc, p) => {
+      acc[p.id] = p;
+      return acc;
+    }, {} as Record<string, Player>);
+
+    // Recalculate match targets and spotted balls
+    const gameType = details.tournament.gameType;
+    [match1, match2].forEach(m => {
+      if (m.player1Id && m.player2Id) {
+        const p1 = playersMap[m.player1Id];
+        const p2 = playersMap[m.player2Id];
+        if (p1 && p2) {
+          const hc = calculateMatchHandicap(p1, p2, gameType);
+          m.player1Target = hc.player1Target;
+          m.player2Target = hc.player2Target;
+          m.player1SpottedBalls = hc.player1SpottedBalls;
+          m.player2SpottedBalls = hc.player2SpottedBalls;
+        }
+      }
+    });
+
+    // Reset all subsequent rounds
+    knockoutMatches.forEach(m => {
+      if (m.roundNumber > 1) {
+        m.player1Id = '';
+        m.player2Id = '';
+        m.player1Score = 0;
+        m.player2Score = 0;
+        m.status = 'scheduled';
+        m.winnerId = undefined;
+      }
+    });
+
+    // Build extended players map including dynamically created SE BYE players
+    const extendedPlayersMap = { ...playersMap };
+    knockoutMatches.forEach(m => {
+      [m.player1Id, m.player2Id].forEach(pid => {
+        if (pid && (pid.includes('BYE') || pid === 'BYE') && !extendedPlayersMap[pid]) {
+          extendedPlayersMap[pid] = {
+            id: pid,
+            name: 'BYE',
+            skillLevel8: 3,
+            skillLevel9: 3,
+            skillLevel10: 3,
+            createdAt: new Date().toISOString(),
+            isBye: true,
+          };
+        }
+      });
+    });
+
+    // Run resolution & progression
+    resolveByeMatches(knockoutMatches, extendedPlayersMap, gameType);
+    advanceKnockoutMatches(knockoutMatches, extendedPlayersMap, gameType);
+
+    // Safeguard: If the tournament was marked completed, reset it back to active
+    if (details.tournament.status === 'completed') {
+      details.tournament.status = 'active';
+      details.tournament.winnerId = undefined;
+    }
+
+    // Save back to local storage
+    const allMatches = this.getStorageItem<Match[]>('ptm_matches', []).filter(m => m.tournamentId !== tournamentId);
+    this.setStorageItem('ptm_matches', [...allMatches, ...details.matches]);
+
+    const tournaments = this.getStorageItem<Tournament[]>('ptm_tournaments', []).map(t => {
+      if (t.id === tournamentId) return details.tournament;
+      return t;
+    });
+    this.setStorageItem('ptm_tournaments', tournaments);
 
     return details;
   }
@@ -1303,6 +1419,143 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase swapTournamentPlayers failed, falling back to LocalStorage', e);
       return localStorageAdapter.swapTournamentPlayers(tournamentId, player1Id, player2Id);
+    }
+  }
+
+  async swapKnockoutPlayers(
+    tournamentId: string,
+    player1Id: string,
+    player2Id: string
+  ): Promise<TournamentDetails> {
+    try {
+      const details = await this.getTournamentDetails(tournamentId);
+      if (!details) throw new Error('Tournament details not found in Supabase');
+
+      const knockoutMatches = details.matches.filter(m => m.roundType === 'knockout');
+      if (knockoutMatches.length === 0) throw new Error('Knockout bracket has not been generated');
+
+      const match1 = knockoutMatches.find(m => m.roundNumber === 1 && (m.player1Id === player1Id || m.player2Id === player1Id));
+      const match2 = knockoutMatches.find(m => m.roundNumber === 1 && (m.player1Id === player2Id || m.player2Id === player2Id));
+
+      if (!match1 || !match2) {
+        throw new Error('One or both players not found in Round 1 knockout matches in Supabase');
+      }
+
+      if (match1.status === 'completed' || match2.status === 'completed') {
+        throw new Error('Cannot swap players in completed matches');
+      }
+
+      // Swap the player IDs in memory
+      if (match1.player1Id === player1Id) {
+        match1.player1Id = player2Id;
+      } else {
+        match1.player2Id = player2Id;
+      }
+
+      if (match2.player1Id === player2Id) {
+        match2.player1Id = player1Id;
+      } else {
+        match2.player2Id = player1Id;
+      }
+
+      const playersMap = details.players.reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {} as Record<string, Player>);
+
+      // Recalculate targets and spotted balls in memory
+      const gameType = details.tournament.gameType;
+      [match1, match2].forEach(m => {
+        if (m.player1Id && m.player2Id) {
+          const p1 = playersMap[m.player1Id];
+          const p2 = playersMap[m.player2Id];
+          if (p1 && p2) {
+            const hc = calculateMatchHandicap(p1, p2, gameType);
+            m.player1Target = hc.player1Target;
+            m.player2Target = hc.player2Target;
+            m.player1SpottedBalls = hc.player1SpottedBalls;
+            m.player2SpottedBalls = hc.player2SpottedBalls;
+          }
+        }
+      });
+
+      // Reset subsequent round matches in memory
+      knockoutMatches.forEach(m => {
+        if (m.roundNumber > 1) {
+          m.player1Id = '';
+          m.player2Id = '';
+          m.player1Score = 0;
+          m.player2Score = 0;
+          m.status = 'scheduled';
+          m.winnerId = undefined;
+        }
+      });
+
+      // Build extended players map including dynamically created SE BYE players
+      const extendedPlayersMap = { ...playersMap };
+      knockoutMatches.forEach(m => {
+        [m.player1Id, m.player2Id].forEach(pid => {
+          if (pid && (pid.includes('BYE') || pid === 'BYE') && !extendedPlayersMap[pid]) {
+            extendedPlayersMap[pid] = {
+              id: pid,
+              name: 'BYE',
+              skillLevel8: 3,
+              skillLevel9: 3,
+              skillLevel10: 3,
+              createdAt: new Date().toISOString(),
+              isBye: true,
+            };
+          }
+        });
+      });
+
+      // Run resolution & progression in memory
+      resolveByeMatches(knockoutMatches, extendedPlayersMap, gameType);
+      advanceKnockoutMatches(knockoutMatches, extendedPlayersMap, gameType);
+
+      // Safeguard: If the tournament was marked completed, reset it back to active
+      if (details.tournament.status === 'completed') {
+        details.tournament.status = 'active';
+        details.tournament.winnerId = undefined;
+
+        await this.client
+          .from('tournaments')
+          .update({ status: 'active', winner_id: null })
+          .eq('id', tournamentId);
+      }
+
+      // Upsert the updated knockout matches to Supabase
+      const matchesToUpsert = knockoutMatches.map(m => ({
+        id: m.id,
+        tournament_id: tournamentId,
+        group_id: m.groupId || null,
+        round_type: m.roundType,
+        round_number: m.roundNumber,
+        match_number: m.matchNumber,
+        player1_id: m.player1Id || null,
+        player2_id: m.player2Id || null,
+        player1_score: m.player1Score,
+        player2_score: m.player2Score,
+        player1_target: m.player1Target,
+        player2_target: m.player2Target,
+        player1_spotted_balls: m.player1SpottedBalls,
+        player2_spotted_balls: m.player2SpottedBalls,
+        status: m.status,
+        winner_id: m.winnerId || null,
+        player1_stats: m.player1Stats || {},
+        player2_stats: m.player2Stats || {},
+      }));
+
+      const { error: upsErr } = await this.client.from('matches').upsert(matchesToUpsert);
+      if (upsErr) throw upsErr;
+
+      // Return refreshed details
+      const refreshed = await this.getTournamentDetails(tournamentId);
+      if (!refreshed) throw new Error('Failed to retrieve refreshed details from Supabase');
+      return refreshed;
+    } catch (e) {
+      console.warn('Supabase swapKnockoutPlayers failed, falling back to LocalStorage', e);
+      return localStorageAdapter.swapKnockoutPlayers(tournamentId, player1Id, player2Id);
     }
   }
 

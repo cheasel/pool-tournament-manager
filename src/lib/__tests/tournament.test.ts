@@ -525,5 +525,116 @@ describe('Bracket Engine Tests', () => {
     // Clean up
     await db.deletePlayer(player.id);
   });
+
+  it('swaps knockout players in Round 1 matches and resets progression', async () => {
+    const db = getDatabaseAdapter();
+    
+    // Create 8 players
+    const createdPlayers: Player[] = [];
+    for (let i = 0; i < 8; i++) {
+      const p = await db.createPlayer({
+        name: `KO Player ${i + 1}`,
+        skillLevel8: 5,
+        skillLevel9: 5,
+        skillLevel10: 5,
+      });
+      createdPlayers.push(p);
+    }
+
+    // Create tournament
+    const tournament = await db.createTournament(
+      'Knockout Swap Test Tourney',
+      '8-Ball',
+      createdPlayers.map(p => p.id)
+    );
+
+    // Get tournament details
+    let details = await db.getTournamentDetails(tournament.id);
+    expect(details).toBeTruthy();
+
+    // Auto-complete all group matches to seed knockout bracket
+    const playGroupMatches = async (groupMatches: Match[]) => {
+      let attempts = 0;
+      let currentMatches = [...groupMatches];
+      while (currentMatches.some(m => m.status !== 'completed') && attempts < 50) {
+        attempts++;
+        for (const match of currentMatches) {
+          if (match.status !== 'completed' && match.player1Id && match.player2Id) {
+            await db.updateMatchScore(
+              tournament.id,
+              match.id,
+              match.player1Target,
+              0,
+              { breakAndRun: false, tableRun: false },
+              { breakAndRun: false, tableRun: false }
+            );
+          }
+        }
+        const updated = await db.getTournamentDetails(tournament.id);
+        currentMatches = updated?.matches.filter(m => m.groupId === groupMatches[0].groupId) || [];
+      }
+    };
+
+    const groupMatches = details!.matches.filter(m => m.groupId === details!.groups[0].id);
+    await playGroupMatches(groupMatches);
+
+    // Refresh details to get the seeded knockout matches
+    details = await db.getTournamentDetails(tournament.id);
+    const knockoutMatches = details!.matches.filter(m => m.roundType === 'knockout');
+    expect(knockoutMatches.length).toBeGreaterThan(0);
+
+    const round1Matches = knockoutMatches.filter(m => m.roundNumber === 1);
+    expect(round1Matches.length).toBe(2);
+
+    // Pick two players from different Round 1 knockout matches to swap
+    const playerA = round1Matches[0].player1Id;
+    const playerB = round1Matches[1].player1Id;
+    expect(playerA).toBeTruthy();
+    expect(playerB).toBeTruthy();
+
+    // Perform swap
+    const swappedDetails = await db.swapKnockoutPlayers(tournament.id, playerA, playerB);
+    const updatedMatches = swappedDetails.matches.filter(m => m.roundType === 'knockout');
+    const updatedRound1 = updatedMatches.filter(m => m.roundNumber === 1);
+
+    // Verify playerA and playerB swapped positions
+    const matchContainingPlayerA = updatedRound1.find(m => m.player1Id === playerA || m.player2Id === playerA);
+    const matchContainingPlayerB = updatedRound1.find(m => m.player1Id === playerB || m.player2Id === playerB);
+
+    expect(matchContainingPlayerA?.id).toBe(round1Matches[1].id);
+    expect(matchContainingPlayerB?.id).toBe(round1Matches[0].id);
+
+    // Verify round 2 is empty/TBD
+    const updatedRound2 = updatedMatches.filter(m => m.roundNumber > 1);
+    updatedRound2.forEach(m => {
+      expect(m.player1Id).toBe('');
+      expect(m.player2Id).toBe('');
+      expect(m.status).toBe('scheduled');
+      expect(m.winnerId).toBeUndefined();
+    });
+
+    // Test validation: swapping a completed match should fail
+    // Complete match 1
+    const m1 = updatedRound1.find(m => m.id === round1Matches[0].id)!;
+    await db.updateMatchScore(
+      tournament.id,
+      m1.id,
+      m1.player1Target,
+      0,
+      { breakAndRun: false, tableRun: false },
+      { breakAndRun: false, tableRun: false }
+    );
+
+    // Swapping now should throw an error since match 1 is completed
+    await expect(
+      db.swapKnockoutPlayers(tournament.id, m1.player1Id, playerB)
+    ).rejects.toThrow('Cannot swap players in completed matches');
+
+    // Clean up
+    await db.deleteTournament(tournament.id);
+    for (const p of createdPlayers) {
+      await db.deletePlayer(p.id);
+    }
+  });
 });
 

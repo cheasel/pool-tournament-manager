@@ -46,6 +46,7 @@ export default function TournamentDetailPage() {
 
   const [paymentCategory, setPaymentCategory] = useState<'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout'>('entry');
   const [swapSourcePlayer, setSwapSourcePlayer] = useState<{ playerId: string; name: string } | null>(null);
+  const [swapKnockoutSourcePlayer, setSwapKnockoutSourcePlayer] = useState<{ playerId: string; name: string } | null>(null);
 
   const handleTogglePayment = async (
     category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout',
@@ -310,6 +311,7 @@ export default function TournamentDetailPage() {
 
   const hasStarted = matches.some(m => m.status === 'completed' && !playersMap[m.winnerId || '']?.isBye);
   const canSwap = isSuperAdmin && isCreator && !hasStarted;
+  const canSwapKnockout = isSuperAdmin && isCreator && tournament.status === 'active';
 
   const numRealPlayers = players.filter(p => !p.isBye).length;
   const entryFee = tournament.entryFee || 0;
@@ -345,6 +347,29 @@ export default function TournamentDetailPage() {
           alert('Failed to swap player slots.');
         } finally {
           setSwapSourcePlayer(null);
+          setLoading(false);
+        }
+      }
+    }
+  };
+
+  const handleKnockoutPlayerSwapClick = async (playerId: string, name: string) => {
+    if (!canSwapKnockout) return;
+    if (!swapKnockoutSourcePlayer) {
+      setSwapKnockoutSourcePlayer({ playerId, name });
+    } else {
+      if (swapKnockoutSourcePlayer.playerId === playerId) {
+        setSwapKnockoutSourcePlayer(null); // Cancel
+      } else {
+        try {
+          setLoading(true);
+          const updated = await db.swapKnockoutPlayers(id, swapKnockoutSourcePlayer.playerId, playerId);
+          setDetails(updated);
+        } catch (err) {
+          console.error('Failed to swap knockout players:', err);
+          alert('Failed to swap player slots in knockout.');
+        } finally {
+          setSwapKnockoutSourcePlayer(null);
           setLoading(false);
         }
       }
@@ -466,6 +491,12 @@ export default function TournamentDetailPage() {
 
     const isClickable = canEdit && match.player1Id && match.player2Id && !p1.isBye && !p2.isBye;
 
+    const canSwapP1 = canSwapKnockout && match.roundType === 'knockout' && match.roundNumber === 1 && !isCompleted && match.player1Id;
+    const canSwapP2 = canSwapKnockout && match.roundType === 'knockout' && match.roundNumber === 1 && !isCompleted && match.player2Id;
+
+    const isP1Selected = swapKnockoutSourcePlayer?.playerId === match.player1Id;
+    const isP2Selected = swapKnockoutSourcePlayer?.playerId === match.player2Id;
+
     const formatBilliardBall = (spotArray: number[]) => {
       if (spotArray.length === 0) return null;
       return (
@@ -499,7 +530,23 @@ export default function TournamentDetailPage() {
                 isCompleted ? (isP1Winner ? 'bg-primary' : 'bg-muted') : 'bg-slate-500'
               }`}
             />
-            <span className={`text-xs font-bold truncate ${isCompleted ? (isP1Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'}`}>
+            <span
+              onClick={(e) => {
+                if (canSwapP1) {
+                  e.stopPropagation();
+                  handleKnockoutPlayerSwapClick(match.player1Id, p1.isBye ? 'BYE' : p1.name);
+                }
+              }}
+              className={`text-xs font-bold truncate px-1 rounded transition-all duration-200 ${
+                canSwapP1 ? 'cursor-pointer' : ''
+              } ${
+                isP1Selected
+                  ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse font-extrabold'
+                  : canSwapP1
+                    ? 'bg-slate-800 text-white hover:bg-primary hover:text-slate-950 font-extrabold shadow-[0_0_8px_rgba(16,185,129,0.2)]'
+                    : isCompleted ? (isP1Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'
+              }`}
+            >
               {p1.name}
             </span>
             {!p1.isBye && match.player1Id && (
@@ -530,7 +577,23 @@ export default function TournamentDetailPage() {
                 isCompleted ? (isP2Winner ? 'bg-primary' : 'bg-muted') : 'bg-slate-500'
               }`}
             />
-            <span className={`text-xs font-bold truncate ${isCompleted ? (isP2Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'}`}>
+            <span
+              onClick={(e) => {
+                if (canSwapP2) {
+                  e.stopPropagation();
+                  handleKnockoutPlayerSwapClick(match.player2Id, p2.isBye ? 'BYE' : p2.name);
+                }
+              }}
+              className={`text-xs font-bold truncate px-1 rounded transition-all duration-200 ${
+                canSwapP2 ? 'cursor-pointer' : ''
+              } ${
+                isP2Selected
+                  ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse font-extrabold'
+                  : canSwapP2
+                    ? 'bg-slate-800 text-white hover:bg-primary hover:text-slate-950 font-extrabold shadow-[0_0_8px_rgba(16,185,129,0.2)]'
+                    : isCompleted ? (isP2Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'
+              }`}
+            >
               {p2.name}
             </span>
             {!p2.isBye && match.player2Id && (
