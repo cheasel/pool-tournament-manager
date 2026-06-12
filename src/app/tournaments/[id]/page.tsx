@@ -44,6 +44,7 @@ export default function TournamentDetailPage() {
   const db = getDatabaseAdapter();
 
   const [paymentCategory, setPaymentCategory] = useState<'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout'>('entry');
+  const [swapSourcePlayer, setSwapSourcePlayer] = useState<{ playerId: string; name: string } | null>(null);
 
   const handleTogglePayment = async (
     category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout',
@@ -301,6 +302,9 @@ export default function TournamentDetailPage() {
     return acc;
   }, {} as Record<string, Player>);
 
+  const hasStarted = matches.some(m => m.status === 'completed' && !playersMap[m.winnerId || '']?.isBye);
+  const canSwap = isSuperAdmin && isCreator && !hasStarted;
+
   const numRealPlayers = players.filter(p => !p.isBye).length;
   const entryFee = tournament.entryFee || 0;
   const totalPrizePool = entryFee * numRealPlayers;
@@ -316,6 +320,29 @@ export default function TournamentDetailPage() {
       createdAt: '',
       isBye: pid === 'BYE' || pid.includes('BYE'),
     };
+  };
+
+  const handlePlayerSwapClick = async (playerId: string, name: string) => {
+    if (!canSwap) return;
+    if (!swapSourcePlayer) {
+      setSwapSourcePlayer({ playerId, name });
+    } else {
+      if (swapSourcePlayer.playerId === playerId) {
+        setSwapSourcePlayer(null); // Cancel
+      } else {
+        try {
+          setLoading(true);
+          const updated = await db.swapTournamentPlayers(id, swapSourcePlayer.playerId, playerId);
+          setDetails(updated);
+        } catch (err) {
+          console.error('Failed to swap players:', err);
+          alert('Failed to swap player slots.');
+        } finally {
+          setSwapSourcePlayer(null);
+          setLoading(false);
+        }
+      }
+    }
   };
 
   const openScoring = (match: Match) => {
@@ -568,6 +595,11 @@ export default function TournamentDetailPage() {
     const isCompleted = match.status === 'completed';
     const isClickable = match.player1Id && match.player2Id && !p1.isBye && !p2.isBye;
 
+    const isP1Selected = swapSourcePlayer?.playerId === match.player1Id;
+    const isP2Selected = swapSourcePlayer?.playerId === match.player2Id;
+    const isRound1 = match.matchNumber >= 1 && match.matchNumber <= 4;
+    const canSwapThisMatch = canSwap && isRound1;
+
     const getSeedCode = (playerId?: string) => {
       if (!playerId || playerId === 'BYE' || playerId.includes('BYE')) return '';
       const idx = activeGroup?.playerIds.indexOf(playerId) ?? -1;
@@ -606,7 +638,23 @@ export default function TournamentDetailPage() {
             </span>
           )}
           {/* Name (White-ish box) */}
-          <span className="flex-1 h-5 px-1.5 ml-1 bg-slate-100 text-slate-900 font-extrabold rounded truncate flex items-center justify-between text-[10px]">
+          <span 
+            onClick={(e) => {
+              if (canSwapThisMatch && match.player1Id) {
+                e.stopPropagation();
+                handlePlayerSwapClick(match.player1Id, p1.isBye ? 'BYE' : p1.name);
+              }
+            }}
+            className={`flex-1 h-5 px-1.5 ml-1 font-extrabold rounded truncate flex items-center justify-between text-[10px] transition-all duration-200 ${
+              canSwapThisMatch ? 'cursor-pointer' : ''
+            } ${
+              isP1Selected 
+                ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse' 
+                : canSwapThisMatch
+                  ? 'bg-slate-100/90 text-slate-950 hover:bg-primary hover:text-slate-950 hover:shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                  : 'bg-slate-100 text-slate-900'
+            }`}
+          >
             {p1.isBye ? 'BYE' : p1.name || 'TBD'}
           </span>
           {/* Score (Blue-green) */}
@@ -632,7 +680,23 @@ export default function TournamentDetailPage() {
             </span>
           )}
           {/* Name (White-ish box) */}
-          <span className="flex-1 h-5 px-1.5 ml-1 bg-slate-100 text-slate-900 font-extrabold rounded truncate flex items-center justify-between text-[10px]">
+          <span 
+            onClick={(e) => {
+              if (canSwapThisMatch && match.player2Id) {
+                e.stopPropagation();
+                handlePlayerSwapClick(match.player2Id, p2.isBye ? 'BYE' : p2.name);
+              }
+            }}
+            className={`flex-1 h-5 px-1.5 ml-1 font-extrabold rounded truncate flex items-center justify-between text-[10px] transition-all duration-200 ${
+              canSwapThisMatch ? 'cursor-pointer' : ''
+            } ${
+              isP2Selected 
+                ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse' 
+                : canSwapThisMatch
+                  ? 'bg-slate-100/90 text-slate-950 hover:bg-primary hover:text-slate-950 hover:shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                  : 'bg-slate-100 text-slate-900'
+            }`}
+          >
             {p2.isBye ? 'BYE' : p2.name || 'TBD'}
           </span>
           {/* Score (Blue-green) */}
@@ -1397,6 +1461,34 @@ export default function TournamentDetailPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Swap Warning Banner */}
+              {canSwap && !swapSourcePlayer && (
+                <div className="glass-panel border-primary/20 bg-primary/5 p-3.5 rounded-xl flex items-center gap-2 text-xs text-primary-hover font-semibold animate-fade-in shrink-0">
+                  <Info className="h-4.5 w-4.5 text-primary shrink-0" />
+                  <span>
+                    <strong>Super Admin Tip:</strong> You can rearrange bracket positions before matches start. Click on any player's name slot in the Round 1 (Matches 1-4) column to initiate a swap.
+                  </span>
+                </div>
+              )}
+
+              {swapSourcePlayer && (
+                <div className="glass-panel border-amber-500/30 bg-amber-950/20 p-4 rounded-xl flex items-center justify-between text-xs text-amber-200 font-bold animate-pulse shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4.5 w-4.5 text-amber-400 shrink-0 animate-bounce" />
+                    <span>
+                      Select another player in Match 1-4 (Round 1) to swap with <strong className="text-amber-400 underline">{swapSourcePlayer.name}</strong>.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSwapSourcePlayer(null)}
+                    className="px-3 py-1 rounded bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-amber-500/20 transition-all cursor-pointer font-extrabold text-[11px]"
+                  >
+                    Cancel Swap
+                  </button>
+                </div>
+              )}
 
               {activeGroup && (
                 <div className="space-y-8">
