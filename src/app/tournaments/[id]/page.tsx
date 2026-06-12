@@ -13,7 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info } from 'lucide-react';
 
 export default function TournamentDetailPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -293,6 +293,9 @@ export default function TournamentDetailPage() {
   }
 
   const { tournament, players, groups, matches } = details;
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isCreator = !tournament.creatorEmail || tournament.creatorEmail === user?.email;
+  const canEdit = isAuthenticated && (isSuperAdmin || isCreator);
   const playersMap = players.reduce((acc, p) => {
     acc[p.id] = p;
     return acc;
@@ -316,7 +319,7 @@ export default function TournamentDetailPage() {
   };
 
   const openScoring = (match: Match) => {
-    if (!isAuthenticated) return;
+    if (!canEdit) return;
     if (match.player1Id === 'BYE' || match.player2Id === 'BYE') return; // Cannot score bye
     if (!match.player1Id || !match.player2Id) return; // Cannot score TBD
 
@@ -428,7 +431,7 @@ export default function TournamentDetailPage() {
     const isP1Winner = isCompleted && match.winnerId === match.player1Id;
     const isP2Winner = isCompleted && match.winnerId === match.player2Id;
 
-    const isClickable = isAuthenticated && match.player1Id && match.player2Id && !p1.isBye && !p2.isBye;
+    const isClickable = canEdit && match.player1Id && match.player2Id && !p1.isBye && !p2.isBye;
 
     const formatBilliardBall = (spotArray: number[]) => {
       if (spotArray.length === 0) return null;
@@ -712,14 +715,21 @@ export default function TournamentDetailPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={startAuction}
-                className="rounded-xl bg-primary text-background font-black text-sm px-8 py-3.5 hover:bg-primary-hover shadow-lg hover:shadow-primary/30 transition-all cursor-pointer inline-flex items-center gap-1.5 inline-flex items-center gap-1.5"
-              >
-                Start Calcutta Auction
-                <ChevronRight className="h-4 w-4" />
-              </button>
+              {!canEdit ? (
+                <div className="rounded-lg bg-billiard-orange/10 border border-billiard-orange/20 p-3.5 flex gap-2 text-xs text-billiard-orange font-bold text-center justify-center items-center max-w-xs mx-auto">
+                  <Info className="h-4 w-4 shrink-0" />
+                  <span>Creator permissions required to run Calcutta auction.</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startAuction}
+                  className="rounded-xl bg-primary text-background font-black text-sm px-8 py-3.5 hover:bg-primary-hover shadow-lg hover:shadow-primary/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  Start Calcutta Auction
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              )}
             </div>
           ) : (
             /* Three-Column Active Dashboard Layout (matches 64 players screenshot style) */
@@ -905,7 +915,7 @@ export default function TournamentDetailPage() {
                           </div>
 
                           {/* Active Player Card */}
-                          {isAuthenticated ? (
+                          {canEdit ? (
                             <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-5 border border-primary/10 relative overflow-hidden bg-slate-950/40 shrink-0">
                               {/* Glowing background ball accent */}
                               <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-primary/10 blur-[45px]" />
@@ -1093,7 +1103,7 @@ export default function TournamentDetailPage() {
                                             type="text"
                                             value={bid.buyerName}
                                             onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
-                                            disabled={!isAuthenticated}
+                                            disabled={!canEdit}
                                             className="bg-transparent text-[10px] text-muted-foreground w-14 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
                                             placeholder="Edit Buyer"
                                           />
@@ -1101,7 +1111,7 @@ export default function TournamentDetailPage() {
                                           <select
                                             value={bid.split ? 'YES' : 'NO'}
                                             onChange={e => updateBidValue(player.id, 'split', e.target.value === 'YES')}
-                                            disabled={!isAuthenticated}
+                                            disabled={!canEdit}
                                             className="bg-transparent text-[10px] text-muted-foreground p-0 border-none focus:outline-none focus:ring-0 font-semibold cursor-pointer disabled:opacity-50"
                                           >
                                             <option value="NO">Split: NO</option>
@@ -1115,7 +1125,7 @@ export default function TournamentDetailPage() {
                                           type="number"
                                           value={bid.bidAmount}
                                           onChange={e => updateBidValue(player.id, 'bidAmount', Math.max(0, parseInt(e.target.value) || 0))}
-                                          disabled={!isAuthenticated}
+                                          disabled={!canEdit}
                                           className="w-10 bg-transparent text-right font-bold text-white focus:outline-none p-0 border-none focus:ring-0 text-[10px] disabled:opacity-50"
                                         />
                                       </div>
@@ -1137,7 +1147,7 @@ export default function TournamentDetailPage() {
                                 <Check className="h-5 w-5 text-primary" />
                                 Review Final Bids
                               </h2>
-                              {isAuthenticated && (
+                              {canEdit && (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1165,11 +1175,11 @@ export default function TournamentDetailPage() {
                                             type="text"
                                             value={bid.buyerName}
                                             onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
-                                            disabled={!isAuthenticated}
+                                            disabled={!canEdit}
                                             className="bg-transparent text-[10px] text-muted-foreground w-18 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
                                             placeholder="Edit Buyer"
                                           />
-                                          {isAuthenticated && (
+                                          {canEdit && (
                                             <button
                                               type="button"
                                               onClick={() => updateBidValue(player.id, 'buyerName', player.name)}
@@ -1183,7 +1193,7 @@ export default function TournamentDetailPage() {
                                         <select
                                           value={bid.split ? 'YES' : 'NO'}
                                           onChange={e => updateBidValue(player.id, 'split', e.target.value === 'YES')}
-                                          disabled={!isAuthenticated}
+                                          disabled={!canEdit}
                                           className="bg-transparent text-[10px] text-muted-foreground p-0 border-none focus:outline-none focus:ring-0 font-semibold cursor-pointer disabled:opacity-50"
                                         >
                                           <option value="NO">Split: NO</option>
@@ -1197,7 +1207,7 @@ export default function TournamentDetailPage() {
                                         type="number"
                                         value={bid.bidAmount}
                                         onChange={e => updateBidValue(player.id, 'bidAmount', Math.max(0, parseInt(e.target.value) || 0))}
-                                        disabled={!isAuthenticated}
+                                        disabled={!canEdit}
                                         className="w-10 bg-transparent text-right font-bold text-white focus:outline-none p-0 border-none focus:ring-0 text-[10px] disabled:opacity-50"
                                       />
                                     </div>
@@ -1279,10 +1289,10 @@ export default function TournamentDetailPage() {
                               </p>
                             </div>
 
-                            {!isAuthenticated ? (
+                            {!canEdit ? (
                               <div className="rounded-lg bg-billiard-orange/10 border border-billiard-orange/20 p-3.5 flex gap-2 text-xs text-billiard-orange font-bold text-center justify-center items-center w-full">
                                 <Info className="h-4 w-4 shrink-0" />
-                                <span>Admin login required to start the tournament.</span>
+                                <span>{isAuthenticated ? 'Creator permissions required to start the tournament.' : 'Admin login required to start the tournament.'}</span>
                               </div>
                             ) : (
                               <button
