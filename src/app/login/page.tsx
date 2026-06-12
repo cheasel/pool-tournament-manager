@@ -79,12 +79,14 @@ export default function LoginPage() {
                 <div className="space-y-2">
                   <div>
                     <p className="text-white/80 font-bold text-[10px] uppercase tracking-wider mb-0.5">Super Admin:</p>
+                    <p>Username: <span className="text-white font-bold">Super Admin</span></p>
                     <p>Email: <span className="text-white font-mono">superadmin@rackmaster.com</span></p>
                     <p>Password: <span className="text-white font-mono">superadmin123</span></p>
                   </div>
                   
                   <div className="border-t border-border/30 pt-1.5">
                     <p className="text-white/80 font-bold text-[10px] uppercase tracking-wider mb-0.5">Admin:</p>
+                    <p>Username: <span className="text-white font-bold">Rack Admin</span></p>
                     <p>Email: <span className="text-white font-mono">admin@rackmaster.com</span></p>
                     <p>Password: <span className="text-white font-mono">admin123</span></p>
                   </div>
