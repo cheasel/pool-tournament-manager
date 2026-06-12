@@ -344,9 +344,9 @@ export function seedSingleElimination(
     byePlayers.push({
       id: byeId,
       name: 'BYE',
-      skillLevel8: 2,
-      skillLevel9: 2,
-      skillLevel10: 2,
+      skillLevel8: 3,
+      skillLevel9: 3,
+      skillLevel10: 3,
       createdAt: new Date().toISOString(),
       isBye: true,
     });

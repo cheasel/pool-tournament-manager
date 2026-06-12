@@ -1,7 +1,8 @@
 import React from 'react';
 import { TournamentDetails, Player, Tournament } from '@/types';
 import { calculateTournamentEarnings } from '@/lib/earnings';
-import { Trophy, Coins } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Trophy, Coins, Info } from 'lucide-react';
 
 interface PaymentsTabProps {
   details: TournamentDetails;
@@ -22,6 +23,7 @@ export default function PaymentsTab({
   onTogglePayment,
   renderProgressMeter,
 }: PaymentsTabProps) {
+  const { isAuthenticated } = useAuth();
   const allPlayers = players.filter(p => !p.isBye);
   const numRealPlayers = allPlayers.length;
   const entryFee = tournament.entryFee || 0;
@@ -143,6 +145,14 @@ export default function PaymentsTab({
         )}
       </div>
 
+      {/* Admin required lock warning */}
+      {!isAuthenticated && (
+        <div className="rounded-lg bg-billiard-orange/10 border border-billiard-orange/20 p-3 flex gap-2 text-xs text-billiard-orange font-bold animate-pulse">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>Admin login required to settle and update payment status records.</span>
+        </div>
+      )}
+
       {/* Payments Table */}
       <div className="glass-panel rounded-2xl shadow-xl overflow-hidden border border-border/60 animate-fade-in">
         {paymentCategory === 'entry' && (
@@ -168,7 +178,8 @@ export default function PaymentsTab({
                             type="checkbox"
                             checked={isPaid}
                             onChange={() => onTogglePayment('entry', p.id)}
-                            className="rounded accent-primary bg-background border-border h-4 w-4"
+                            disabled={!isAuthenticated}
+                            className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </label>
                       </td>
@@ -272,7 +283,8 @@ export default function PaymentsTab({
                             type="checkbox"
                             checked={item.isAllPaid}
                             onChange={() => onTogglePayment('calcuttaBid', item.targetIds, item.isAllPaid ? 'unpaid' : 'paid')}
-                            className="rounded accent-primary bg-background border-border h-4 w-4"
+                            disabled={!isAuthenticated}
+                            className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </label>
                       </td>
@@ -320,7 +332,8 @@ export default function PaymentsTab({
                               type="checkbox"
                               checked={isPaid}
                               onChange={() => onTogglePayment('payout', row.playerId)}
-                              className="rounded accent-primary bg-background border-border h-4 w-4"
+                              disabled={!isAuthenticated}
+                              className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </label>
                         </td>
@@ -396,7 +409,8 @@ export default function PaymentsTab({
                             type="checkbox"
                             checked={row.isPaid}
                             onChange={() => onTogglePayment('calcuttaPayout', row.pId)}
-                            className="rounded accent-primary bg-background border-border h-4 w-4"
+                            disabled={!isAuthenticated}
+                            className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </label>
                       </td>

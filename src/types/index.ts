@@ -1,9 +1,9 @@
 export interface Player {
   id: string;
   name: string;
-  skillLevel8: number; // 2-7
-  skillLevel9: number; // 2-9;
-  skillLevel10: number; // 2-9;
+  skillLevel8: number; // 3-22
+  skillLevel9: number; // 3-22;
+  skillLevel10: number; // 3-22;
   createdAt: string;
   isBye?: boolean; // True if it's a spacer 'BYE' player
 }
@@ -38,6 +38,7 @@ export interface Tournament {
   calcuttaBidsPaidIds?: string[];
   playerPayoutPaidIds?: string[];
   ownerPayoutPaidIds?: string[];
+  creatorEmail?: string;
 }
 
 export interface Group {

@@ -16,7 +16,8 @@ export interface DatabaseAdapter {
     hasCalcutta?: boolean,
     calcuttaMinStartBet?: number,
     calcuttaMinIncrement?: number,
-    calcuttaPayoutPercentages?: number[]
+    calcuttaPayoutPercentages?: number[],
+    creatorEmail?: string
   ): Promise<Tournament>;
   updateMatchScore(
     tournamentId: string,
@@ -37,34 +38,35 @@ export interface DatabaseAdapter {
     playerPayoutPaidIds: string[],
     ownerPayoutPaidIds: string[]
   ): Promise<TournamentDetails>;
+  deleteTournament(id: string): Promise<void>;
 }
 
 // ----------------------------------------------------
 // Mock Seed Data (Professional & Amateur Players)
 // ----------------------------------------------------
 const MOCK_PLAYERS_SEED: Player[] = [
-  { id: 'efren', name: 'Efren Reyes', skillLevel8: 7, skillLevel9: 9, skillLevel10: 9, createdAt: new Date().toISOString() },
-  { id: 'svb', name: 'Shane Van Boening', skillLevel8: 7, skillLevel9: 9, skillLevel10: 9, createdAt: new Date().toISOString() },
-  { id: 'filler', name: 'Joshua Filler', skillLevel8: 7, skillLevel9: 9, skillLevel10: 9, createdAt: new Date().toISOString() },
-  { id: 'gorst', name: 'Fedor Gorst', skillLevel8: 7, skillLevel9: 9, skillLevel10: 9, createdAt: new Date().toISOString() },
-  { id: 'shaw', name: 'Jayson Shaw', skillLevel8: 7, skillLevel9: 9, skillLevel10: 9, createdAt: new Date().toISOString() },
-  { id: 'strickland', name: 'Earl Strickland', skillLevel8: 6, skillLevel9: 8, skillLevel10: 8, createdAt: new Date().toISOString() },
-  { id: 'albin', name: 'Albin Ouschan', skillLevel8: 7, skillLevel9: 8, skillLevel10: 8, createdAt: new Date().toISOString() },
-  { id: 'bustamante', name: 'Francisco Bustamante', skillLevel8: 7, skillLevel9: 8, skillLevel10: 8, createdAt: new Date().toISOString() },
-  { id: 'ko_pin_yi', name: 'Ko Pin Yi', skillLevel8: 7, skillLevel9: 9, skillLevel10: 9, createdAt: new Date().toISOString() },
-  { id: 'pagulayan', name: 'Alex Pagulayan', skillLevel8: 7, skillLevel9: 8, skillLevel10: 8, createdAt: new Date().toISOString() },
+  { id: 'efren', name: 'Efren Reyes', skillLevel8: 22, skillLevel9: 22, skillLevel10: 22, createdAt: new Date().toISOString() },
+  { id: 'svb', name: 'Shane Van Boening', skillLevel8: 22, skillLevel9: 22, skillLevel10: 22, createdAt: new Date().toISOString() },
+  { id: 'filler', name: 'Joshua Filler', skillLevel8: 22, skillLevel9: 22, skillLevel10: 22, createdAt: new Date().toISOString() },
+  { id: 'gorst', name: 'Fedor Gorst', skillLevel8: 21, skillLevel9: 21, skillLevel10: 21, createdAt: new Date().toISOString() },
+  { id: 'shaw', name: 'Jayson Shaw', skillLevel8: 21, skillLevel9: 21, skillLevel10: 21, createdAt: new Date().toISOString() },
+  { id: 'strickland', name: 'Earl Strickland', skillLevel8: 18, skillLevel9: 18, skillLevel10: 18, createdAt: new Date().toISOString() },
+  { id: 'albin', name: 'Albin Ouschan', skillLevel8: 19, skillLevel9: 19, skillLevel10: 19, createdAt: new Date().toISOString() },
+  { id: 'bustamante', name: 'Francisco Bustamante', skillLevel8: 20, skillLevel9: 20, skillLevel10: 20, createdAt: new Date().toISOString() },
+  { id: 'ko_pin_yi', name: 'Ko Pin Yi', skillLevel8: 22, skillLevel9: 22, skillLevel10: 22, createdAt: new Date().toISOString() },
+  { id: 'pagulayan', name: 'Alex Pagulayan', skillLevel8: 20, skillLevel9: 20, skillLevel10: 20, createdAt: new Date().toISOString() },
   
   // Mid Range Players
-  { id: 'john_doe', name: 'John Smith (Local A)', skillLevel8: 5, skillLevel9: 6, skillLevel10: 5, createdAt: new Date().toISOString() },
-  { id: 'jane_smith', name: 'Jane Miller (Local B)', skillLevel8: 4, skillLevel9: 4, skillLevel10: 4, createdAt: new Date().toISOString() },
-  { id: 'dave_c', name: 'Dave Carter', skillLevel8: 5, skillLevel9: 5, skillLevel10: 5, createdAt: new Date().toISOString() },
-  { id: 'sarah_j', name: 'Sarah Jones', skillLevel8: 3, skillLevel9: 3, skillLevel10: 3, createdAt: new Date().toISOString() },
-  { id: 'mike_t', name: 'Mike Thompson', skillLevel8: 6, skillLevel9: 7, skillLevel10: 7, createdAt: new Date().toISOString() },
-  { id: 'amy_w', name: 'Amy Watson', skillLevel8: 3, skillLevel9: 2, skillLevel10: 2, createdAt: new Date().toISOString() },
+  { id: 'john_doe', name: 'John Smith (Local A)', skillLevel8: 14, skillLevel9: 15, skillLevel10: 14, createdAt: new Date().toISOString() },
+  { id: 'jane_smith', name: 'Jane Miller (Local B)', skillLevel8: 10, skillLevel9: 10, skillLevel10: 10, createdAt: new Date().toISOString() },
+  { id: 'dave_c', name: 'Dave Carter', skillLevel8: 12, skillLevel9: 12, skillLevel10: 12, createdAt: new Date().toISOString() },
+  { id: 'sarah_j', name: 'Sarah Jones', skillLevel8: 8, skillLevel9: 8, skillLevel10: 8, createdAt: new Date().toISOString() },
+  { id: 'mike_t', name: 'Mike Thompson', skillLevel8: 16, skillLevel9: 17, skillLevel10: 17, createdAt: new Date().toISOString() },
+  { id: 'amy_w', name: 'Amy Watson', skillLevel8: 6, skillLevel9: 5, skillLevel10: 5, createdAt: new Date().toISOString() },
   
   // Novice Players
-  { id: 'bob_n', name: 'Bob Novice', skillLevel8: 2, skillLevel9: 2, skillLevel10: 2, createdAt: new Date().toISOString() },
-  { id: 'clara_k', name: 'Clara Kelly', skillLevel8: 2, skillLevel9: 2, skillLevel10: 2, createdAt: new Date().toISOString() },
+  { id: 'bob_n', name: 'Bob Novice', skillLevel8: 3, skillLevel9: 3, skillLevel10: 3, createdAt: new Date().toISOString() },
+  { id: 'clara_k', name: 'Clara Kelly', skillLevel8: 3, skillLevel9: 3, skillLevel10: 3, createdAt: new Date().toISOString() },
 ];
 
 // ----------------------------------------------------
@@ -142,9 +144,9 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
         uniqueByes.push({
           id: pid,
           name: 'BYE',
-          skillLevel8: 2,
-          skillLevel9: 2,
-          skillLevel10: 2,
+          skillLevel8: 3,
+          skillLevel9: 3,
+          skillLevel10: 3,
           createdAt: new Date().toISOString(),
           isBye: true,
         });
@@ -168,7 +170,8 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     hasCalcutta?: boolean,
     calcuttaMinStartBet?: number,
     calcuttaMinIncrement?: number,
-    calcuttaPayoutPercentages?: number[]
+    calcuttaPayoutPercentages?: number[],
+    creatorEmail?: string
   ): Promise<Tournament> {
     const allPlayers = await this.getPlayers();
     const playersMap = allPlayers.reduce((acc, p) => {
@@ -191,6 +194,7 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       calcuttaMinStartBet,
       calcuttaMinIncrement,
       calcuttaPayoutPercentages,
+      creatorEmail,
     };
 
     // 1. Resolve players, pad with BYEs to reach multiple of 8
@@ -203,9 +207,9 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       finalPlayers.push({
         id: byeId,
         name: `BYE ${i + 1}`,
-        skillLevel8: 2,
-        skillLevel9: 2,
-        skillLevel10: 2,
+        skillLevel8: 3,
+        skillLevel9: 3,
+        skillLevel10: 3,
         createdAt: now,
         isBye: true,
       });
@@ -429,6 +433,17 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     if (!details) throw new Error('Failed to retrieve updated details');
     return details;
   }
+
+  async deleteTournament(id: string): Promise<void> {
+    const currentTournaments = this.getStorageItem<Tournament[]>('ptm_tournaments', []);
+    this.setStorageItem('ptm_tournaments', currentTournaments.filter(t => t.id !== id));
+
+    const currentGroups = this.getStorageItem<Group[]>('ptm_groups', []);
+    this.setStorageItem('ptm_groups', currentGroups.filter(g => g.tournamentId !== id));
+
+    const currentMatches = this.getStorageItem<Match[]>('ptm_matches', []);
+    this.setStorageItem('ptm_matches', currentMatches.filter(m => m.tournamentId !== id));
+  }
 }
 
 // ----------------------------------------------------
@@ -605,9 +620,9 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
           uniqueByes.push({
             id: pid,
             name: 'BYE',
-            skillLevel8: 2,
-            skillLevel9: 2,
-            skillLevel10: 2,
+            skillLevel8: 3,
+            skillLevel9: 3,
+            skillLevel10: 3,
             createdAt: new Date().toISOString(),
             isBye: true,
           });
@@ -635,7 +650,8 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     hasCalcutta?: boolean,
     calcuttaMinStartBet?: number,
     calcuttaMinIncrement?: number,
-    calcuttaPayoutPercentages?: number[]
+    calcuttaPayoutPercentages?: number[],
+    creatorEmail?: string
   ): Promise<Tournament> {
     try {
       // For creation, we perform bracket logic, and write records to Supabase tables:
@@ -659,6 +675,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
           calcutta_min_start_bet: calcuttaMinStartBet,
           calcutta_min_increment: calcuttaMinIncrement,
           calcutta_payout_percentages: calcuttaPayoutPercentages,
+          creator_email: creatorEmail,
         })
         .select()
         .single();
@@ -677,9 +694,9 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         finalPlayers.push({
           id: byeId,
           name: `BYE ${i + 1}`,
-          skillLevel8: 2,
-          skillLevel9: 2,
-          skillLevel10: 2,
+          skillLevel8: 3,
+          skillLevel9: 3,
+          skillLevel10: 3,
           createdAt: new Date().toISOString(),
           isBye: true,
         });
@@ -810,6 +827,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         calcuttaMinStartBet: tournamentData.calcutta_min_start_bet,
         calcuttaMinIncrement: tournamentData.calcutta_min_increment,
         calcuttaPayoutPercentages: tournamentData.calcutta_payout_percentages,
+        creatorEmail: tournamentData.creator_email || undefined,
         calcuttaBids: tournamentData.calcutta_bids,
       };
     } catch (e) {
@@ -823,7 +841,8 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         hasCalcutta,
         calcuttaMinStartBet,
         calcuttaMinIncrement,
-        calcuttaPayoutPercentages
+        calcuttaPayoutPercentages,
+        creatorEmail
       );
     }
   }
@@ -1026,6 +1045,18 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         playerPayoutPaidIds,
         ownerPayoutPaidIds
       );
+    }
+  }
+
+  async deleteTournament(id: string): Promise<void> {
+    try {
+      await this.client.from('matches').delete().eq('tournament_id', id);
+      await this.client.from('groups').delete().eq('tournament_id', id);
+      const { error } = await this.client.from('tournaments').delete().eq('id', id);
+      if (error) throw error;
+    } catch (e) {
+      console.warn('Supabase deleteTournament failed, falling back to LocalStorage', e);
+      await localStorageAdapter.deleteTournament(id);
     }
   }
 }

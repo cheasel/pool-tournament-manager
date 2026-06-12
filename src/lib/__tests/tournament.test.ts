@@ -28,24 +28,24 @@ describe('Handicap Logic Tests', () => {
     createdAt: '',
   };
 
-  const p2: Player = {
-    id: 'p2',
-    name: 'Player 2',
-    skillLevel8: 2,
-    skillLevel9: 2,
-    skillLevel10: 2,
+  const p3: Player = {
+    id: 'p3',
+    name: 'Player 3',
+    skillLevel8: 3,
+    skillLevel9: 3,
+    skillLevel10: 3,
     createdAt: '',
   };
 
-  it('calculates 8-Ball targets correctly based on APA grid', () => {
+  it('calculates 8-Ball targets correctly based on custom difference formula', () => {
     const setup1 = calculateMatchHandicap(p7, p5, '8-Ball');
-    expect(setup1.player1Target).toBe(5);
-    expect(setup1.player2Target).toBe(3);
+    expect(setup1.player1Target).toBe(6);
+    expect(setup1.player2Target).toBe(4);
     expect(setup1.player1SpottedBalls).toEqual([]);
 
-    const setup2 = calculateMatchHandicap(p5, p2, '8-Ball');
-    expect(setup2.player1Target).toBe(4);
-    expect(setup2.player2Target).toBe(2);
+    const setup2 = calculateMatchHandicap(p5, p3, '8-Ball');
+    expect(setup2.player1Target).toBe(6);
+    expect(setup2.player2Target).toBe(4);
   });
 
   it('calculates 9-Ball / 10-Ball targets and spotting balls correctly', () => {
@@ -58,15 +58,15 @@ describe('Handicap Logic Tests', () => {
 
     // Diff 2 -> spot 8
     const setupDiff2 = calculateMatchHandicap(p7, p5, '9-Ball');
-    expect(setupDiff2.player1Target).toBe(5);
-    expect(setupDiff2.player2Target).toBe(3);
+    expect(setupDiff2.player1Target).toBe(6);
+    expect(setupDiff2.player2Target).toBe(4);
     expect(setupDiff2.player2SpottedBalls).toEqual([8]);
 
-    // Diff 5 -> spot 6,7,8
-    const setupDiff5 = calculateMatchHandicap(p7, p2, '9-Ball');
-    expect(setupDiff5.player1Target).toBe(7);
-    expect(setupDiff5.player2Target).toBe(3);
-    expect(setupDiff5.player2SpottedBalls).toEqual([6, 7, 8]);
+    // Diff 4 -> spot 6,7,8
+    const setupDiff4 = calculateMatchHandicap(p7, p3, '9-Ball');
+    expect(setupDiff4.player1Target).toBe(7);
+    expect(setupDiff4.player2Target).toBe(3);
+    expect(setupDiff4.player2SpottedBalls).toEqual([6, 7, 8]);
   });
 });
 
@@ -332,6 +332,46 @@ describe('Bracket Engine Tests', () => {
     expect(reFetched?.tournament.calcuttaBidsPaidIds).toEqual(calcuttaPaid);
     expect(reFetched?.tournament.playerPayoutPaidIds).toEqual(playerPayoutPaid);
     expect(reFetched?.tournament.ownerPayoutPaidIds).toEqual(ownerPayoutPaid);
+  });
+
+  it('saves creatorEmail on creation and deletes tournament with its groups and matches successfully', async () => {
+    const db = getDatabaseAdapter();
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland', 'albin', 'bustamante'];
+    
+    // Create with creatorEmail
+    const creator = 'creator@admin.com';
+    const tournament = await db.createTournament(
+      'Deletion Test Tourney',
+      '8-Ball',
+      playersRoster,
+      50,
+      [60, 40],
+      false,
+      undefined,
+      undefined,
+      undefined,
+      creator
+    );
+
+    expect(tournament.creatorEmail).toBe(creator);
+
+    // Verify it exists in details
+    let details = await db.getTournamentDetails(tournament.id);
+    expect(details).toBeTruthy();
+    expect(details?.tournament.id).toBe(tournament.id);
+    expect(details?.tournament.creatorEmail).toBe(creator);
+    expect(details?.groups.length).toBeGreaterThan(0);
+    expect(details?.matches.length).toBeGreaterThan(0);
+
+    // Delete tournament
+    await db.deleteTournament(tournament.id);
+
+    // Verify it is gone
+    const list = await db.getTournaments();
+    expect(list.some(t => t.id === tournament.id)).toBe(false);
+
+    const reFetched = await db.getTournamentDetails(tournament.id);
+    expect(reFetched).toBeNull();
   });
 });
 

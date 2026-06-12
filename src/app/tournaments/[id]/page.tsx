@@ -9,9 +9,11 @@ import { calculateTournamentEarnings } from '@/lib/earnings';
 import PaymentsTab from './components/PaymentsTab';
 import EarningsTab from './components/EarningsTab';
 import ScoringModal from './components/ScoringModal';
+import { useAuth } from '@/context/AuthContext';
 import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info } from 'lucide-react';
 
 export default function TournamentDetailPage() {
+  const { isAuthenticated } = useAuth();
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -305,15 +307,16 @@ export default function TournamentDetailPage() {
     return playersMap[pid] || {
       id: pid,
       name: pid === 'BYE' || pid.includes('BYE') ? 'BYE' : 'TBD',
-      skillLevel8: 2,
-      skillLevel9: 2,
-      skillLevel10: 2,
+      skillLevel8: 3,
+      skillLevel9: 3,
+      skillLevel10: 3,
       createdAt: '',
       isBye: pid === 'BYE' || pid.includes('BYE'),
     };
   };
 
   const openScoring = (match: Match) => {
+    if (!isAuthenticated) return;
     if (match.player1Id === 'BYE' || match.player2Id === 'BYE') return; // Cannot score bye
     if (!match.player1Id || !match.player2Id) return; // Cannot score TBD
 
@@ -425,7 +428,7 @@ export default function TournamentDetailPage() {
     const isP1Winner = isCompleted && match.winnerId === match.player1Id;
     const isP2Winner = isCompleted && match.winnerId === match.player2Id;
 
-    const isClickable = match.player1Id && match.player2Id && !p1.isBye && !p2.isBye;
+    const isClickable = isAuthenticated && match.player1Id && match.player2Id && !p1.isBye && !p2.isBye;
 
     const formatBilliardBall = (spotArray: number[]) => {
       if (spotArray.length === 0) return null;
@@ -902,117 +905,134 @@ export default function TournamentDetailPage() {
                           </div>
 
                           {/* Active Player Card */}
-                          <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-5 border border-primary/10 relative overflow-hidden bg-slate-950/40 shrink-0">
-                            {/* Glowing background ball accent */}
-                            <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-primary/10 blur-[45px]" />
-                            
-                            <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-border/15 pb-2.5">
-                              <span className="text-primary uppercase tracking-wider font-extrabold">ACTIVE BIDDING BLOCK</span>
-                              <span>Player {currentRosterIdx + 1} of {shuffledRoster.length}</span>
-                            </div>
-
-                            {(() => {
-                              const player = shuffledRoster[currentRosterIdx];
-                              const sl = tournament.gameType === '8-Ball' ? player.skillLevel8 : tournament.gameType === '9-Ball' ? player.skillLevel9 : player.skillLevel10;
-                              return (
-                                <div className="text-center py-1 space-y-1">
-                                  <span className="inline-flex items-center justify-center h-10 w-10 font-black text-lg rounded-full bg-slate-900 border border-border/40 text-primary shadow-inner">
-                                    {currentRosterIdx + 1}
-                                  </span>
-                                  <h3 className="text-2xl font-black text-white tracking-tight">{player.name}</h3>
-                                  <span className="inline-block text-[10px] font-extrabold uppercase bg-slate-800 border border-border/40 px-3 py-0.5 rounded text-muted-foreground">
-                                    HC: A{sl}
-                                  </span>
-                                </div>
-                              );
-                            })()}
-
-                            {/* Controls Inputs Row */}
-                            <div className="grid gap-4 sm:grid-cols-3 bg-slate-950/60 p-4 rounded-xl border border-border/15 text-xs">
-                              {/* Buyer Name */}
-                              <div>
-                                <div className="flex justify-between items-center mb-1">
-                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                    Owner / Buyer
-                                  </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const player = shuffledRoster[currentRosterIdx];
-                                      if (player) {
-                                        setActiveBuyerName(player.name);
-                                      }
-                                    }}
-                                    className="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px] font-extrabold uppercase hover:bg-primary hover:text-background transition-all duration-200 cursor-pointer select-none"
-                                  >
-                                    Self Buy
-                                  </button>
-                                </div>
-                                <input
-                                  type="text"
-                                  value={activeBuyerName}
-                                  onChange={e => setActiveBuyerName(e.target.value)}
-                                  placeholder="e.g. Scott"
-                                  className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
-                                  autoFocus
-                                />
+                          {isAuthenticated ? (
+                            <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-5 border border-primary/10 relative overflow-hidden bg-slate-950/40 shrink-0">
+                              {/* Glowing background ball accent */}
+                              <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-primary/10 blur-[45px]" />
+                              
+                              <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-border/15 pb-2.5">
+                                <span className="text-primary uppercase tracking-wider font-extrabold">ACTIVE BIDDING BLOCK</span>
+                                <span>Player {currentRosterIdx + 1} of {shuffledRoster.length}</span>
                               </div>
 
-                              {/* Winning Bid */}
-                              <div>
-                                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                                  Winning Bid (฿)
-                                </label>
-                                <div className="flex items-center bg-background border border-border/40 rounded-lg px-2 py-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveBidAmount(a => Math.max(tournament.calcuttaMinStartBet ?? 10, a - (tournament.calcuttaMinIncrement ?? 5)))}
-                                    className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
-                                  >
-                                    -
-                                  </button>
+                              {(() => {
+                                const player = shuffledRoster[currentRosterIdx];
+                                const sl = tournament.gameType === '8-Ball' ? player.skillLevel8 : tournament.gameType === '9-Ball' ? player.skillLevel9 : player.skillLevel10;
+                                return (
+                                  <div className="text-center py-1 space-y-1">
+                                    <span className="inline-flex items-center justify-center h-10 w-10 font-black text-lg rounded-full bg-slate-900 border border-border/40 text-primary shadow-inner">
+                                      {currentRosterIdx + 1}
+                                    </span>
+                                    <h3 className="text-2xl font-black text-white tracking-tight">{player.name}</h3>
+                                    <span className="inline-block text-[10px] font-extrabold uppercase bg-slate-800 border border-border/40 px-3 py-0.5 rounded text-muted-foreground">
+                                      HC: A{sl}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Controls Inputs Row */}
+                              <div className="grid gap-4 sm:grid-cols-3 bg-slate-950/60 p-4 rounded-xl border border-border/15 text-xs">
+                                {/* Buyer Name */}
+                                <div>
+                                  <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                      Owner / Buyer
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const player = shuffledRoster[currentRosterIdx];
+                                        if (player) {
+                                          setActiveBuyerName(player.name);
+                                        }
+                                      }}
+                                      className="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[10px] font-extrabold uppercase hover:bg-primary hover:text-background transition-all duration-200 cursor-pointer select-none"
+                                    >
+                                      Self Buy
+                                    </button>
+                                  </div>
                                   <input
-                                    type="number"
-                                    min={tournament.calcuttaMinStartBet ?? 10}
-                                    value={activeBidAmount}
-                                    onChange={e => setActiveBidAmount(Math.max(tournament.calcuttaMinStartBet ?? 10, parseInt(e.target.value) || (tournament.calcuttaMinStartBet ?? 10)))}
-                                    className="w-full bg-transparent text-center font-black text-white text-sm focus:outline-none px-1"
+                                    type="text"
+                                    value={activeBuyerName}
+                                    onChange={e => setActiveBuyerName(e.target.value)}
+                                    placeholder="e.g. Scott"
+                                    className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
+                                    autoFocus
                                   />
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveBidAmount(a => a + (tournament.calcuttaMinIncrement ?? 5))}
-                                    className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
+                                </div>
+
+                                {/* Winning Bid */}
+                                <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                    Winning Bid (฿)
+                                  </label>
+                                  <div className="flex items-center bg-background border border-border/40 rounded-lg px-2 py-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveBidAmount(a => Math.max(tournament.calcuttaMinStartBet ?? 10, a - (tournament.calcuttaMinIncrement ?? 5)))}
+                                      className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={tournament.calcuttaMinStartBet ?? 10}
+                                      value={activeBidAmount}
+                                      onChange={e => setActiveBidAmount(Math.max(tournament.calcuttaMinStartBet ?? 10, parseInt(e.target.value) || (tournament.calcuttaMinStartBet ?? 10)))}
+                                      className="w-full bg-transparent text-center font-black text-white text-sm focus:outline-none px-1"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveBidAmount(a => a + (tournament.calcuttaMinIncrement ?? 5))}
+                                      className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Split Toggle */}
+                                <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                    Split with Player?
+                                  </label>
+                                  <select
+                                    value={activeSplit ? 'YES' : 'NO'}
+                                    onChange={e => setActiveSplit(e.target.value === 'YES')}
+                                    className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
                                   >
-                                    +
-                                  </button>
+                                    <option value="NO">NO</option>
+                                    <option value="YES">YES</option>
+                                  </select>
                                 </div>
                               </div>
 
-                              {/* Split Toggle */}
-                              <div>
-                                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                                  Split with Player?
-                                </label>
-                                <select
-                                  value={activeSplit ? 'YES' : 'NO'}
-                                  onChange={e => setActiveSplit(e.target.value === 'YES')}
-                                  className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
-                                >
-                                  <option value="NO">NO</option>
-                                  <option value="YES">YES</option>
-                                </select>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={handleBidSold}
+                                className="w-full rounded-xl bg-primary py-3 text-xs font-black text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer uppercase tracking-wider font-extrabold"
+                              >
+                                Sold! (Next Player)
+                                <ChevronRight className="h-4.5 w-4.5" />
+                              </button>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={handleBidSold}
-                              className="w-full rounded-xl bg-primary py-3 text-xs font-black text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer uppercase tracking-wider font-extrabold"
-                            >
-                              Sold! (Next Player)
-                              <ChevronRight className="h-4.5 w-4.5" />
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-4 border border-billiard-orange/20 bg-slate-950/40 shrink-0 text-center animate-fade-in relative overflow-hidden">
+                              <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-billiard-orange/5 blur-[45px]" />
+                              <Info className="h-8 w-8 mx-auto text-billiard-orange" />
+                              <h3 className="text-base font-bold text-white">Calcutta Auction in Progress</h3>
+                              <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                                The player bidding and split options are currently active. Settle auction entries or launch the bracket by logging into the admin console.
+                              </p>
+                              <a
+                                href="/login"
+                                className="inline-flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary border border-primary/20 hover:text-background px-4 py-2.5 text-xs font-bold text-primary transition-all font-black"
+                              >
+                                Admin Sign In
+                              </a>
+                            </div>
+                          )}
 
                           {/* Last Sold Player Banner Accent */}
                           {currentRosterIdx > 0 && (
@@ -1073,14 +1093,16 @@ export default function TournamentDetailPage() {
                                             type="text"
                                             value={bid.buyerName}
                                             onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
-                                            className="bg-transparent text-[10px] text-muted-foreground w-14 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold"
+                                            disabled={!isAuthenticated}
+                                            className="bg-transparent text-[10px] text-muted-foreground w-14 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
                                             placeholder="Edit Buyer"
                                           />
                                           <span className="text-[10px] text-muted-foreground/40">•</span>
                                           <select
                                             value={bid.split ? 'YES' : 'NO'}
                                             onChange={e => updateBidValue(player.id, 'split', e.target.value === 'YES')}
-                                            className="bg-transparent text-[10px] text-muted-foreground p-0 border-none focus:outline-none focus:ring-0 font-semibold cursor-pointer"
+                                            disabled={!isAuthenticated}
+                                            className="bg-transparent text-[10px] text-muted-foreground p-0 border-none focus:outline-none focus:ring-0 font-semibold cursor-pointer disabled:opacity-50"
                                           >
                                             <option value="NO">Split: NO</option>
                                             <option value="YES">Split: YES</option>
@@ -1093,7 +1115,8 @@ export default function TournamentDetailPage() {
                                           type="number"
                                           value={bid.bidAmount}
                                           onChange={e => updateBidValue(player.id, 'bidAmount', Math.max(0, parseInt(e.target.value) || 0))}
-                                          className="w-10 bg-transparent text-right font-bold text-white focus:outline-none p-0 border-none focus:ring-0 text-[10px]"
+                                          disabled={!isAuthenticated}
+                                          className="w-10 bg-transparent text-right font-bold text-white focus:outline-none p-0 border-none focus:ring-0 text-[10px] disabled:opacity-50"
                                         />
                                       </div>
                                     </div>
@@ -1114,17 +1137,19 @@ export default function TournamentDetailPage() {
                                 <Check className="h-5 w-5 text-primary" />
                                 Review Final Bids
                               </h2>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to reset the auction? All registered bids will be cleared.")) {
-                                    startAuction();
-                                  }
-                                }}
-                                className="rounded bg-border/40 hover:bg-border px-2.5 py-1 text-[10px] text-white transition-colors cursor-pointer"
-                              >
-                                Reset Auction
-                              </button>
+                              {isAuthenticated && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm("Are you sure you want to reset the auction? All registered bids will be cleared.")) {
+                                      startAuction();
+                                    }
+                                  }}
+                                  className="rounded bg-border/40 hover:bg-border px-2.5 py-1 text-[10px] text-white transition-colors cursor-pointer"
+                                >
+                                  Reset Auction
+                                </button>
+                              )}
                             </div>
 
                             <div className="grid gap-3 sm:grid-cols-2 max-h-[420px] overflow-y-auto pr-1">
@@ -1140,22 +1165,26 @@ export default function TournamentDetailPage() {
                                             type="text"
                                             value={bid.buyerName}
                                             onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
-                                            className="bg-transparent text-[10px] text-muted-foreground w-18 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold"
+                                            disabled={!isAuthenticated}
+                                            className="bg-transparent text-[10px] text-muted-foreground w-18 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
                                             placeholder="Edit Buyer"
                                           />
-                                          <button
-                                            type="button"
-                                            onClick={() => updateBidValue(player.id, 'buyerName', player.name)}
-                                            className="px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[9px] font-black uppercase hover:bg-primary hover:text-background transition-all duration-200 cursor-pointer select-none shrink-0"
-                                          >
-                                            Self
-                                          </button>
+                                          {isAuthenticated && (
+                                            <button
+                                              type="button"
+                                              onClick={() => updateBidValue(player.id, 'buyerName', player.name)}
+                                              className="px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 text-[9px] font-black uppercase hover:bg-primary hover:text-background transition-all duration-200 cursor-pointer select-none shrink-0"
+                                            >
+                                              Self
+                                            </button>
+                                          )}
                                         </div>
                                         <span className="text-[10px] text-muted-foreground/40">•</span>
                                         <select
                                           value={bid.split ? 'YES' : 'NO'}
                                           onChange={e => updateBidValue(player.id, 'split', e.target.value === 'YES')}
-                                          className="bg-transparent text-[10px] text-muted-foreground p-0 border-none focus:outline-none focus:ring-0 font-semibold cursor-pointer"
+                                          disabled={!isAuthenticated}
+                                          className="bg-transparent text-[10px] text-muted-foreground p-0 border-none focus:outline-none focus:ring-0 font-semibold cursor-pointer disabled:opacity-50"
                                         >
                                           <option value="NO">Split: NO</option>
                                           <option value="YES">Split: YES</option>
@@ -1168,7 +1197,8 @@ export default function TournamentDetailPage() {
                                         type="number"
                                         value={bid.bidAmount}
                                         onChange={e => updateBidValue(player.id, 'bidAmount', Math.max(0, parseInt(e.target.value) || 0))}
-                                        className="w-10 bg-transparent text-right font-bold text-white focus:outline-none p-0 border-none focus:ring-0 text-[10px]"
+                                        disabled={!isAuthenticated}
+                                        className="w-10 bg-transparent text-right font-bold text-white focus:outline-none p-0 border-none focus:ring-0 text-[10px] disabled:opacity-50"
                                       />
                                     </div>
                                   </div>
@@ -1249,15 +1279,22 @@ export default function TournamentDetailPage() {
                               </p>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={handleStartTournament}
-                              disabled={startingTournament}
-                              className="w-full rounded-lg bg-primary py-3 text-sm font-bold text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
-                            >
-                              {startingTournament ? 'Locking Bids & Starting...' : 'Lock Bids & Start Bracket'}
-                              <ChevronRight className="h-4 w-4" />
-                            </button>
+                            {!isAuthenticated ? (
+                              <div className="rounded-lg bg-billiard-orange/10 border border-billiard-orange/20 p-3.5 flex gap-2 text-xs text-billiard-orange font-bold text-center justify-center items-center w-full">
+                                <Info className="h-4 w-4 shrink-0" />
+                                <span>Admin login required to start the tournament.</span>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleStartTournament}
+                                disabled={startingTournament}
+                                className="w-full rounded-lg bg-primary py-3 text-sm font-bold text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                {startingTournament ? 'Locking Bids & Starting...' : 'Lock Bids & Start Bracket'}
+                                <ChevronRight className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
 
                         </div>

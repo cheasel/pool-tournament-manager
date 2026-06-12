@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Player, GameType } from '@/types';
 import { getDatabaseAdapter } from '@/lib/db';
+import { useAuth } from '@/context/AuthContext';
 import { Trophy, Users, CheckSquare, Square, ChevronRight, Info, Coins } from 'lucide-react';
 
 const PAYOUT_PRESETS: Record<number, number[]> = {
@@ -16,6 +17,8 @@ const PAYOUT_PRESETS: Record<number, number[]> = {
 
 export default function CreateTournamentPage() {
   const router = useRouter();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [name, setName] = useState('');
@@ -37,15 +40,15 @@ export default function CreateTournamentPage() {
   // Inline player creation states
   const [showAddPlayerForm, setShowAddPlayerForm] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState('');
-  const [newSl8, setNewSl8] = useState(4);
-  const [newSl9, setNewSl9] = useState(4);
-  const [newSl10, setNewSl10] = useState(4);
+  const [newSl8, setNewSl8] = useState(10);
+  const [newSl9, setNewSl9] = useState(10);
+  const [newSl10, setNewSl10] = useState(10);
   const [inlineError, setInlineError] = useState('');
 
   const db = getDatabaseAdapter();
 
-  const handleAddPlayerInline = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddPlayerInline = async (e?: React.FormEvent | React.KeyboardEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     setInlineError('');
 
     if (!newPlayerName.trim()) {
@@ -69,9 +72,9 @@ export default function CreateTournamentPage() {
 
       // Reset form fields
       setNewPlayerName('');
-      setNewSl8(4);
-      setNewSl9(4);
-      setNewSl10(4);
+      setNewSl8(10);
+      setNewSl9(10);
+      setNewSl10(10);
       setShowAddPlayerForm(false);
     } catch (err) {
       console.error(err);
@@ -175,7 +178,8 @@ export default function CreateTournamentPage() {
         hasCalcutta,
         calcuttaMinStartBet,
         calcuttaMinIncrement,
-        hasCalcutta ? calcuttaPayoutPercentages : undefined
+        hasCalcutta ? calcuttaPayoutPercentages : undefined,
+        user?.email || undefined
       );
       router.push(`/tournaments/${tournament.id}`);
     } catch (err) {
@@ -190,6 +194,45 @@ export default function CreateTournamentPage() {
   const nextMultipleOf8 = Math.ceil(numSelected / 8) * 8;
   const numByesNeeded = (8 - (numSelected % 8)) % 8;
   const numGroups = nextMultipleOf8 / 8;
+
+  if (authLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh]">
+        <span className="inline-block animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mb-3"></span>
+        <span className="text-sm text-muted-foreground font-semibold">Verifying admin credentials...</span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto my-12 text-center space-y-6 animate-fade-in">
+        <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-billiard-red/10 border border-billiard-red/20 text-billiard-red shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+          <Info className="h-8 w-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-black text-white">Admin Authorization Required</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Creating new tournaments is restricted to administrators. Please log in to your admin account to access this creator form.
+          </p>
+        </div>
+        <div className="glass-panel p-6 rounded-xl border border-border flex flex-col gap-3">
+          <a
+            href="/login"
+            className="w-full inline-flex items-center justify-center rounded-lg bg-primary py-3 text-sm font-bold text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all font-bold"
+          >
+            Go to Admin Login
+          </a>
+          <a
+            href="/"
+            className="w-full inline-flex items-center justify-center rounded-lg bg-background border border-border py-3 text-sm font-bold text-white hover:bg-border/30 transition-all"
+          >
+            Return to Dashboard
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
@@ -506,7 +549,7 @@ export default function CreateTournamentPage() {
             </div>
 
             {showAddPlayerForm && (
-              <form onSubmit={handleAddPlayerInline} className="glass-panel p-4 rounded-xl border border-primary/20 bg-slate-950/40 space-y-4 animate-fade-in">
+              <div className="glass-panel p-4 rounded-xl border border-primary/20 bg-slate-950/40 space-y-4 animate-fade-in">
                 <div className="flex items-center justify-between pb-1.5 border-b border-border/20">
                   <h3 className="text-xs font-black text-white uppercase tracking-wider">Register New Player</h3>
                   <button
@@ -527,75 +570,75 @@ export default function CreateTournamentPage() {
                       type="text"
                       value={newPlayerName}
                       onChange={e => setNewPlayerName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddPlayerInline(e);
+                        }
+                      }}
                       placeholder="e.g. Jeanette Lee"
                       className="w-full rounded-lg bg-background border border-border/40 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary font-semibold"
                     />
                   </div>
 
                   <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        8-Ball Skill Level: <span className="text-primary font-black">{newSl8}</span>
-                      </label>
-                      <div className="flex gap-1 justify-between bg-background p-0.5 border border-border/40 rounded-lg">
-                        {[2, 3, 4, 5, 6, 7].map(num => (
-                          <button
-                            key={num}
-                            type="button"
-                            onClick={() => setNewSl8(num)}
-                            className={`h-6 w-7 rounded font-black text-[10px] transition-all flex items-center justify-center cursor-pointer ${
-                              newSl8 === num
-                                ? 'bg-primary text-background'
-                                : 'text-muted-foreground hover:text-white'
-                            }`}
-                          >
-                            {num}
-                          </button>
-                        ))}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                          8-Ball SL
+                        </label>
+                        <input
+                          type="number"
+                          min="3"
+                          max="22"
+                          value={newSl8}
+                          onChange={e => setNewSl8(Math.min(22, Math.max(3, parseInt(e.target.value) || 3)))}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddPlayerInline(e);
+                            }
+                          }}
+                          className="w-full rounded-lg bg-background border border-border/40 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary font-bold text-center"
+                        />
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        9-Ball Skill Level: <span className="text-primary font-black">{newSl9}</span>
-                      </label>
-                      <div className="flex gap-1 justify-between bg-background p-0.5 border border-border/40 rounded-lg">
-                        {[2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                          <button
-                            key={num}
-                            type="button"
-                            onClick={() => setNewSl9(num)}
-                            className={`h-6 w-6 rounded font-black text-[9px] transition-all flex items-center justify-center cursor-pointer ${
-                              newSl9 === num
-                                ? 'bg-primary text-background'
-                                : 'text-muted-foreground hover:text-white'
-                            }`}
-                          >
-                            {num}
-                          </button>
-                        ))}
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                          9-Ball SL
+                        </label>
+                        <input
+                          type="number"
+                          min="3"
+                          max="22"
+                          value={newSl9}
+                          onChange={e => setNewSl9(Math.min(22, Math.max(3, parseInt(e.target.value) || 3)))}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddPlayerInline(e);
+                            }
+                          }}
+                          className="w-full rounded-lg bg-background border border-border/40 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary font-bold text-center"
+                        />
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        10-Ball Skill Level: <span className="text-primary font-black">{newSl10}</span>
-                      </label>
-                      <div className="flex gap-1 justify-between bg-background p-0.5 border border-border/40 rounded-lg">
-                        {[2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                          <button
-                            key={num}
-                            type="button"
-                            onClick={() => setNewSl10(num)}
-                            className={`h-6 w-6 rounded font-black text-[9px] transition-all flex items-center justify-center cursor-pointer ${
-                              newSl10 === num
-                                ? 'bg-primary text-background'
-                                : 'text-muted-foreground hover:text-white'
-                            }`}
-                          >
-                            {num}
-                          </button>
-                        ))}
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                          10-Ball SL
+                        </label>
+                        <input
+                          type="number"
+                          min="3"
+                          max="22"
+                          value={newSl10}
+                          onChange={e => setNewSl10(Math.min(22, Math.max(3, parseInt(e.target.value) || 3)))}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddPlayerInline(e);
+                            }
+                          }}
+                          className="w-full rounded-lg bg-background border border-border/40 px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary font-bold text-center"
+                        />
                       </div>
                     </div>
                   </div>
@@ -608,12 +651,13 @@ export default function CreateTournamentPage() {
                 )}
 
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={(e) => handleAddPlayerInline(e)}
                   className="w-full rounded-lg bg-primary py-2 text-xs font-black text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/10 transition-all cursor-pointer"
                 >
                   Register & Select Player
                 </button>
-              </form>
+              </div>
             )}
 
             {loading ? (
