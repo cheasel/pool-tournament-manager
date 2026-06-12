@@ -17,6 +17,7 @@ export interface CalcuttaBid {
   playerId: string;
   bidAmount: number;
   buyerName: string;
+  buyerName2?: string;
   split?: boolean;
 }
 

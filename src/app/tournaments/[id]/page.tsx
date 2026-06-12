@@ -30,7 +30,7 @@ export default function TournamentDetailPage() {
   const [stats1, setStats1] = useState<MatchStats>({ breakAndRun: false, tableRun: false });
   const [stats2, setStats2] = useState<MatchStats>({ breakAndRun: false, tableRun: false });
   const [saving, setSaving] = useState(false);
-  const [bidsMap, setBidsMap] = useState<Record<string, { bidAmount: number; buyerName: string; split: boolean }>>({});
+  const [bidsMap, setBidsMap] = useState<Record<string, { bidAmount: number; buyerName: string; buyerName2?: string; split: boolean }>>({});
   const [startingTournament, setStartingTournament] = useState(false);
 
   // Auction specific states
@@ -38,6 +38,7 @@ export default function TournamentDetailPage() {
   const [shuffledRoster, setShuffledRoster] = useState<Player[]>([]);
   const [currentRosterIdx, setCurrentRosterIdx] = useState(0);
   const [activeBuyerName, setActiveBuyerName] = useState('');
+  const [activeBuyerName2, setActiveBuyerName2] = useState('');
   const [activeBidAmount, setActiveBidAmount] = useState(0);
   const [activeSplit, setActiveSplit] = useState(false);
 
@@ -161,20 +162,21 @@ export default function TournamentDetailPage() {
 
   useEffect(() => {
     if (details && details.tournament.hasCalcutta && details.tournament.status === 'draft') {
-      const initialMap: Record<string, { bidAmount: number; buyerName: string; split: boolean }> = {};
+      const initialMap: Record<string, { bidAmount: number; buyerName: string; buyerName2?: string; split: boolean }> = {};
       const minStartBet = details.tournament.calcuttaMinStartBet ?? 10;
       
       const existingBids = details.tournament.calcuttaBids || [];
       const existingBidsMap = existingBids.reduce((acc, b) => {
-        acc[b.playerId] = { bidAmount: b.bidAmount, buyerName: b.buyerName, split: !!b.split };
+        acc[b.playerId] = { bidAmount: b.bidAmount, buyerName: b.buyerName, buyerName2: b.buyerName2, split: !!b.split };
         return acc;
-      }, {} as Record<string, { bidAmount: number; buyerName: string; split: boolean }>);
+      }, {} as Record<string, { bidAmount: number; buyerName: string; buyerName2?: string; split: boolean }>);
 
       details.players.forEach(p => {
         if (!p.isBye) {
           initialMap[p.id] = existingBidsMap[p.id] || {
             bidAmount: minStartBet,
             buyerName: '',
+            buyerName2: '',
             split: false,
           };
         }
@@ -199,15 +201,16 @@ export default function TournamentDetailPage() {
     setShuffledRoster(shuffled);
     setCurrentRosterIdx(0);
     setActiveBuyerName('');
+    setActiveBuyerName2('');
     setActiveBidAmount(details.tournament.calcuttaMinStartBet ?? 10);
     setActiveSplit(false);
     setAuctionStarted(true);
     
     // Reset/initialize bidsMap with minimum values
     const minStart = details.tournament.calcuttaMinStartBet ?? 10;
-    const initialMap: Record<string, { bidAmount: number; buyerName: string; split: boolean }> = {};
+    const initialMap: Record<string, { bidAmount: number; buyerName: string; buyerName2?: string; split: boolean }> = {};
     realPlayers.forEach(p => {
-      initialMap[p.id] = { bidAmount: minStart, buyerName: '', split: false };
+      initialMap[p.id] = { bidAmount: minStart, buyerName: '', buyerName2: '', split: false };
     });
     setBidsMap(initialMap);
   };
@@ -222,6 +225,7 @@ export default function TournamentDetailPage() {
       [activePlayer.id]: {
         bidAmount: activeBidAmount,
         buyerName: activeBuyerName.trim() || 'Player (Self)',
+        buyerName2: activeBuyerName2.trim() || undefined,
         split: activeSplit,
       },
     }));
@@ -233,6 +237,7 @@ export default function TournamentDetailPage() {
     // Initialize state for the next player if there is one
     if (nextIdx < shuffledRoster.length) {
       setActiveBuyerName('');
+      setActiveBuyerName2('');
       setActiveBidAmount(details?.tournament.calcuttaMinStartBet ?? 10);
       setActiveSplit(false);
     }
@@ -246,6 +251,7 @@ export default function TournamentDetailPage() {
         playerId,
         bidAmount: val.bidAmount,
         buyerName: val.buyerName.trim() || 'Player (Self)',
+        buyerName2: val.buyerName2?.trim() || undefined,
         split: val.split,
       }));
 
@@ -259,7 +265,7 @@ export default function TournamentDetailPage() {
     }
   };
 
-  const updateBidValue = (playerId: string, field: 'bidAmount' | 'buyerName' | 'split', value: number | string | boolean) => {
+  const updateBidValue = (playerId: string, field: 'bidAmount' | 'buyerName' | 'buyerName2' | 'split', value: number | string | boolean) => {
     setBidsMap(prev => ({
       ...prev,
       [playerId]: {
@@ -1006,12 +1012,12 @@ export default function TournamentDetailPage() {
                               })()}
 
                               {/* Controls Inputs Row */}
-                              <div className="grid gap-4 sm:grid-cols-3 bg-slate-950/60 p-4 rounded-xl border border-border/15 text-xs">
-                                {/* Buyer Name */}
+                              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 bg-slate-950/60 p-4 rounded-xl border border-border/15 text-xs">
+                                {/* Buyer Name 1 */}
                                 <div>
                                   <div className="flex justify-between items-center mb-1">
                                     <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                      Owner / Buyer
+                                      Owner / Buyer 1
                                     </label>
                                     <button
                                       type="button"
@@ -1033,6 +1039,22 @@ export default function TournamentDetailPage() {
                                     placeholder="e.g. Scott"
                                     className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
                                     autoFocus
+                                  />
+                                </div>
+
+                                {/* Buyer Name 2 */}
+                                <div>
+                                  <div className="flex justify-between items-center mb-1">
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                      Owner / Buyer 2 (Optional)
+                                    </label>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={activeBuyerName2}
+                                    onChange={e => setActiveBuyerName2(e.target.value)}
+                                    placeholder="e.g. Jane"
+                                    className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-primary font-semibold transition-colors"
                                   />
                                 </div>
 
@@ -1169,7 +1191,16 @@ export default function TournamentDetailPage() {
                                             onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
                                             disabled={!canEdit}
                                             className="bg-transparent text-[10px] text-muted-foreground w-14 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
-                                            placeholder="Edit Buyer"
+                                            placeholder="Owner 1"
+                                          />
+                                          <span className="text-[10px] text-muted-foreground/40">/</span>
+                                          <input
+                                            type="text"
+                                            value={bid.buyerName2 || ''}
+                                            onChange={e => updateBidValue(player.id, 'buyerName2', e.target.value)}
+                                            disabled={!canEdit}
+                                            className="bg-transparent text-[10px] text-muted-foreground w-14 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
+                                            placeholder="Owner 2"
                                           />
                                           <span className="text-[10px] text-muted-foreground/40">•</span>
                                           <select
@@ -1228,7 +1259,7 @@ export default function TournamentDetailPage() {
 
                             <div className="grid gap-3 sm:grid-cols-2 max-h-[420px] overflow-y-auto pr-1">
                               {players.filter(p => !p.isBye).map(player => {
-                                const bid = bidsMap[player.id] || { bidAmount: tournament.calcuttaMinStartBet ?? 10, buyerName: '', split: false };
+                                const bid = bidsMap[player.id] || { bidAmount: tournament.calcuttaMinStartBet ?? 10, buyerName: '', buyerName2: '', split: false };
                                 return (
                                   <div key={player.id} className="glass-panel p-2.5 rounded-lg flex justify-between items-center text-xs">
                                     <div className="min-w-0">
@@ -1240,8 +1271,8 @@ export default function TournamentDetailPage() {
                                             value={bid.buyerName}
                                             onChange={e => updateBidValue(player.id, 'buyerName', e.target.value)}
                                             disabled={!canEdit}
-                                            className="bg-transparent text-[10px] text-muted-foreground w-18 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
-                                            placeholder="Edit Buyer"
+                                            className="bg-transparent text-[10px] text-muted-foreground w-16 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
+                                            placeholder="Owner 1"
                                           />
                                           {canEdit && (
                                             <button
@@ -1253,6 +1284,15 @@ export default function TournamentDetailPage() {
                                             </button>
                                           )}
                                         </div>
+                                        <span className="text-[10px] text-muted-foreground/40">/</span>
+                                        <input
+                                          type="text"
+                                          value={bid.buyerName2 || ''}
+                                          onChange={e => updateBidValue(player.id, 'buyerName2', e.target.value)}
+                                          disabled={!canEdit}
+                                          className="bg-transparent text-[10px] text-muted-foreground w-16 p-0 border-none focus:outline-none focus:ring-0 truncate font-semibold disabled:opacity-50"
+                                          placeholder="Owner 2"
+                                        />
                                         <span className="text-[10px] text-muted-foreground/40">•</span>
                                         <select
                                           value={bid.split ? 'YES' : 'NO'}
@@ -1313,16 +1353,23 @@ export default function TournamentDetailPage() {
                                     </thead>
                                     <tbody className="divide-y divide-border/10 font-bold">
                                       {players.filter(p => !p.isBye).map(player => {
-                                        const bid = bidsMap[player.id] || { bidAmount: tournament.calcuttaMinStartBet ?? 10, buyerName: '', split: false };
+                                        const bid = bidsMap[player.id] || { bidAmount: tournament.calcuttaMinStartBet ?? 10, buyerName: '', buyerName2: '', split: false };
                                         const buyerName = bid.buyerName.trim() || 'Player (Self)';
+                                        const buyer2Name = bid.buyerName2?.trim() || '';
+                                        const displayOwner = buyerName === player.name || buyerName === 'Player (Self)'
+                                          ? 'Self'
+                                          : buyerName;
+                                        const displayOwnerFull = buyer2Name
+                                          ? `${displayOwner} / ${buyer2Name}`
+                                          : displayOwner;
                                         return (
                                           <tr key={player.id} className="hover:bg-slate-800/10 transition-colors">
                                             <td className="py-1.5 px-4 font-black text-white">{player.name}</td>
                                             <td className="py-1.5 px-4 text-slate-300">
-                                              {buyerName === player.name || buyerName === 'Player (Self)' ? (
+                                              {displayOwner === 'Self' && !buyer2Name ? (
                                                 <span className="text-primary font-bold">Self</span>
                                               ) : (
-                                                buyerName
+                                                displayOwnerFull
                                               )}
                                             </td>
                                             <td className="py-1.5 px-4 text-right text-emerald-400 font-extrabold">

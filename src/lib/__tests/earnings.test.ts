@@ -216,4 +216,113 @@ describe('Earnings Calculation Engine', () => {
     expect(combP1.totalEarnings).toBe(400);
     expect(combOwnerA.totalEarnings).toBe(300);
   });
+
+  describe('Joint Calcutta Bids (buyerName2)', () => {
+    // Same tournament structure, but with joint bids for p1 and p2
+    const jointBids: CalcuttaBid[] = [
+      // p1: Joint owners, NO player split. Owner1=Scott, Owner2=Jane, Bid=200
+      { playerId: 'p1', bidAmount: 200, buyerName: 'Scott', buyerName2: 'Jane', split: false },
+      // p2: Joint owners, YES player split. Owner1=Mike, Owner2=Nate, Bid=120
+      { playerId: 'p2', bidAmount: 120, buyerName: 'Mike', buyerName2: 'Nate', split: true },
+      // Other players: single owner, no split
+      { playerId: 'p3', bidAmount: 80, buyerName: 'Owner A', split: false },
+      { playerId: 'p4', bidAmount: 60, buyerName: 'Owner C', split: false },
+      { playerId: 'p5', bidAmount: 50, buyerName: 'Owner D', split: false },
+      { playerId: 'p6', bidAmount: 40, buyerName: 'Owner E', split: false },
+      { playerId: 'p7', bidAmount: 30, buyerName: 'Owner F', split: false },
+      { playerId: 'p8', bidAmount: 20, buyerName: 'Owner G', split: false },
+    ];
+
+    const jointTournament: Tournament = {
+      ...mockTournament,
+      id: 't-joint',
+      calcuttaBids: jointBids,
+    };
+
+    const jointDetails: TournamentDetails = {
+      tournament: jointTournament,
+      players: mockPlayers,
+      groups: mockGroups,
+      matches: mockMatches,
+    };
+
+    it('splits owner costs and payouts 50/50 between two joint owners (no player split)', () => {
+      const earnings = calculateTournamentEarnings(jointDetails);
+
+      // Total Calcutta Pool = 200+120+80+60+50+40+30+20 = 600
+      // p1 (Rank 1): Calcutta payout = 60% of 600 = 360
+      // Split=false: Player gets 0% Calcutta, Owners get 100% -> total 360
+      // Scott (Owner1) gets 50% of 360 = 180, Jane (Owner2) gets 50% of 360 = 180
+      // Scott cost = 50% of bid 200 = 100, Jane cost = 50% of bid 200 = 100
+      // Net Scott = 180 - 100 = 80
+      // Net Jane = 180 - 100 = 80
+      const e1 = earnings.find(e => e.playerId === 'p1')!;
+      expect(e1.calcuttaOwner).toBe('Scott');
+      expect(e1.calcuttaOwner2).toBe('Jane');
+      expect(e1.calcuttaPayout).toBe(360);
+      expect(e1.playerCalcuttaShare).toBe(0);
+      expect(e1.ownerCalcuttaShare).toBe(180);
+      expect(e1.owner2CalcuttaShare).toBe(180);
+      expect(e1.netOwnerEarnings).toBe(80);
+      expect(e1.netOwner2Earnings).toBe(80);
+      // Player net: playerPayout(400) + 0 calcutta - 100 entry - 0 calcutta cost = 300
+      expect(e1.netPlayerEarnings).toBe(300);
+    });
+
+    it('splits owner costs/payouts with player split YES and two joint owners', () => {
+      const earnings = calculateTournamentEarnings(jointDetails);
+
+      // Total Calcutta Pool = 600
+      // p2 (Rank 2): Calcutta payout = 40% of 600 = 240
+      // Split=true: Player gets 50% Calcutta = 120, Owners split remaining 50% = 120
+      // Mike (Owner1) gets 50% of 120 = 60, Nate (Owner2) gets 50% of 120 = 60
+      // Costs: Player pays 50% of bid 120 = 60
+      //        Mike pays 25% of bid 120 = 30
+      //        Nate pays 25% of bid 120 = 30
+      // Net Player: playerPayout(240) + 120(calcuttaShare) - 100(entry) - 60(calcuttaCost) = 200
+      // Net Mike: 60 - 30 = 30
+      // Net Nate: 60 - 30 = 30
+      const e2 = earnings.find(e => e.playerId === 'p2')!;
+      expect(e2.calcuttaOwner).toBe('Mike');
+      expect(e2.calcuttaOwner2).toBe('Nate');
+      expect(e2.calcuttaPayout).toBe(240);
+      expect(e2.playerCalcuttaShare).toBe(120);
+      expect(e2.ownerCalcuttaShare).toBe(60);
+      expect(e2.owner2CalcuttaShare).toBe(60);
+      expect(e2.netOwnerEarnings).toBe(30);
+      expect(e2.netOwner2Earnings).toBe(30);
+      expect(e2.netPlayerEarnings).toBe(200);
+    });
+
+    it('aggregates joint owners correctly in global earnings', () => {
+      const globalStats = aggregateGlobalEarnings([jointDetails]);
+
+      // Scott should appear as an owner with share=180, net=80
+      const scott = globalStats.owners.find(o => o.ownerName === 'Scott')!;
+      expect(scott.ownerCalcuttaShare).toBe(180);
+      expect(scott.netOwnerEarnings).toBe(80);
+
+      // Jane should appear as an owner with share=180, net=80
+      const jane = globalStats.owners.find(o => o.ownerName === 'Jane')!;
+      expect(jane.ownerCalcuttaShare).toBe(180);
+      expect(jane.netOwnerEarnings).toBe(80);
+
+      // Mike should appear with share=60, net=30
+      const mike = globalStats.owners.find(o => o.ownerName === 'Mike')!;
+      expect(mike.ownerCalcuttaShare).toBe(60);
+      expect(mike.netOwnerEarnings).toBe(30);
+
+      // Nate should appear with share=60, net=30
+      const nate = globalStats.owners.find(o => o.ownerName === 'Nate')!;
+      expect(nate.ownerCalcuttaShare).toBe(60);
+      expect(nate.netOwnerEarnings).toBe(30);
+
+      // Combined: Scott and Jane should have owner earnings
+      const combScott = globalStats.combined.find(c => c.name === 'Scott')!;
+      expect(combScott.ownerEarnings).toBe(180);
+
+      const combJane = globalStats.combined.find(c => c.name === 'Jane')!;
+      expect(combJane.ownerEarnings).toBe(180);
+    });
+  });
 });

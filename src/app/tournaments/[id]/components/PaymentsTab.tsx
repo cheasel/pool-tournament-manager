@@ -36,18 +36,38 @@ export default function PaymentsTab({
   const bids = tournament.calcuttaBids || [];
   const expectedCalcuttaPool = bids.reduce((sum, b) => sum + b.bidAmount, 0);
   const collectedCalcuttaPool = bids.reduce((sum, b) => {
-    const isPlayerPaid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId);
-    const isBuyerPaid = b.split
-      ? (tournament.calcuttaBidsPaidIds || []).includes(b.playerId + '-buyer')
-      : isPlayerPaid;
+    const hasBuyer2 = !!b.buyerName2;
 
     if (b.split) {
-      let portion = 0;
-      if (isPlayerPaid) portion += 0.5 * b.bidAmount;
-      if (isBuyerPaid) portion += 0.5 * b.bidAmount;
+      // Player pays 50% of bid
+      const isPlayerPaid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId);
+      let portion = isPlayerPaid ? 0.5 * b.bidAmount : 0;
+
+      if (hasBuyer2) {
+        // Owner 1 pays 25%, Owner 2 pays 25%
+        const isBuyer1Paid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId + '-buyer');
+        const isBuyer2Paid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId + '-buyer2');
+        if (isBuyer1Paid) portion += 0.25 * b.bidAmount;
+        if (isBuyer2Paid) portion += 0.25 * b.bidAmount;
+      } else {
+        // Single owner pays 50%
+        const isBuyerPaid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId + '-buyer');
+        if (isBuyerPaid) portion += 0.5 * b.bidAmount;
+      }
       return sum + portion;
     } else {
-      return sum + (isBuyerPaid ? b.bidAmount : 0);
+      if (hasBuyer2) {
+        // Owner 1 pays 50%, Owner 2 pays 50%
+        const isBuyer1Paid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId);
+        const isBuyer2Paid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId + '-buyer2');
+        let portion = 0;
+        if (isBuyer1Paid) portion += 0.5 * b.bidAmount;
+        if (isBuyer2Paid) portion += 0.5 * b.bidAmount;
+        return sum + portion;
+      } else {
+        const isPaid = (tournament.calcuttaBidsPaidIds || []).includes(b.playerId);
+        return sum + (isPaid ? b.bidAmount : 0);
+      }
     }
   }, 0);
 
@@ -59,12 +79,12 @@ export default function PaymentsTab({
     .reduce((sum, r) => sum + r.playerPayout, 0);
 
   const expectedOwnerPayout = tournament.hasCalcutta
-    ? earnings.reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare, 0)
+    ? earnings.reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare + (r.owner2CalcuttaShare || 0), 0)
     : 0;
   const collectedOwnerPayout = tournament.hasCalcutta
     ? earnings
         .filter(r => (tournament.ownerPayoutPaidIds || []).includes(r.playerId))
-        .reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare, 0)
+        .reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare + (r.owner2CalcuttaShare || 0), 0)
     : 0;
 
   return (
@@ -205,42 +225,92 @@ export default function PaymentsTab({
             const pName = players.find(p => p.id === bid.playerId)?.name || 'Unknown';
             const buyerName = bid.buyerName.trim() || 'Player (Self)';
             const resolvedBuyer = buyerName === 'Player (Self)' ? pName : buyerName;
+            const hasBuyer2 = !!bid.buyerName2;
+            const buyer2Name = bid.buyerName2?.trim() || '';
             
             if (bid.split) {
-              const halfAmount = bid.bidAmount / 2;
+              const playerCost = 0.5 * bid.bidAmount;
               
-              // Player portion
+              // Player portion (always 50%)
               const isPlayerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
               if (!personMap[pName]) personMap[pName] = { expected: 0, paid: 0, associatedTargets: [] };
-              personMap[pName].expected += halfAmount;
-              if (isPlayerPaid) personMap[pName].paid += halfAmount;
+              personMap[pName].expected += playerCost;
+              if (isPlayerPaid) personMap[pName].paid += playerCost;
               personMap[pName].associatedTargets.push({
                 targetId: bid.playerId,
-                portion: halfAmount,
+                portion: playerCost,
                 isPaid: isPlayerPaid,
               });
               
-              // Buyer portion
-              const isBuyerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId + '-buyer');
-              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
-              personMap[resolvedBuyer].expected += halfAmount;
-              if (isBuyerPaid) personMap[resolvedBuyer].paid += halfAmount;
-              personMap[resolvedBuyer].associatedTargets.push({
-                targetId: bid.playerId + '-buyer',
-                portion: halfAmount,
-                isPaid: isBuyerPaid,
-              });
+              if (hasBuyer2) {
+                // Owner 1 pays 25%
+                const ownerCost = 0.25 * bid.bidAmount;
+                const isBuyer1Paid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId + '-buyer');
+                if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
+                personMap[resolvedBuyer].expected += ownerCost;
+                if (isBuyer1Paid) personMap[resolvedBuyer].paid += ownerCost;
+                personMap[resolvedBuyer].associatedTargets.push({
+                  targetId: bid.playerId + '-buyer',
+                  portion: ownerCost,
+                  isPaid: isBuyer1Paid,
+                });
+                // Owner 2 pays 25%
+                const isBuyer2Paid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId + '-buyer2');
+                if (!personMap[buyer2Name]) personMap[buyer2Name] = { expected: 0, paid: 0, associatedTargets: [] };
+                personMap[buyer2Name].expected += ownerCost;
+                if (isBuyer2Paid) personMap[buyer2Name].paid += ownerCost;
+                personMap[buyer2Name].associatedTargets.push({
+                  targetId: bid.playerId + '-buyer2',
+                  portion: ownerCost,
+                  isPaid: isBuyer2Paid,
+                });
+              } else {
+                // Single owner pays 50%
+                const isBuyerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId + '-buyer');
+                if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
+                personMap[resolvedBuyer].expected += playerCost;
+                if (isBuyerPaid) personMap[resolvedBuyer].paid += playerCost;
+                personMap[resolvedBuyer].associatedTargets.push({
+                  targetId: bid.playerId + '-buyer',
+                  portion: playerCost,
+                  isPaid: isBuyerPaid,
+                });
+              }
             } else {
-              // Buyer portion (100%)
-              const isBuyerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
-              if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
-              personMap[resolvedBuyer].expected += bid.bidAmount;
-              if (isBuyerPaid) personMap[resolvedBuyer].paid += bid.bidAmount;
-              personMap[resolvedBuyer].associatedTargets.push({
-                targetId: bid.playerId,
-                portion: bid.bidAmount,
-                isPaid: isBuyerPaid,
-              });
+              if (hasBuyer2) {
+                // Owner 1 pays 50%
+                const halfAmount = 0.5 * bid.bidAmount;
+                const isBuyer1Paid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
+                if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
+                personMap[resolvedBuyer].expected += halfAmount;
+                if (isBuyer1Paid) personMap[resolvedBuyer].paid += halfAmount;
+                personMap[resolvedBuyer].associatedTargets.push({
+                  targetId: bid.playerId,
+                  portion: halfAmount,
+                  isPaid: isBuyer1Paid,
+                });
+                // Owner 2 pays 50%
+                const isBuyer2Paid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId + '-buyer2');
+                if (!personMap[buyer2Name]) personMap[buyer2Name] = { expected: 0, paid: 0, associatedTargets: [] };
+                personMap[buyer2Name].expected += halfAmount;
+                if (isBuyer2Paid) personMap[buyer2Name].paid += halfAmount;
+                personMap[buyer2Name].associatedTargets.push({
+                  targetId: bid.playerId + '-buyer2',
+                  portion: halfAmount,
+                  isPaid: isBuyer2Paid,
+                });
+              } else {
+                // Single owner pays 100%
+                const isBuyerPaid = (tournament.calcuttaBidsPaidIds || []).includes(bid.playerId);
+                if (!personMap[resolvedBuyer]) personMap[resolvedBuyer] = { expected: 0, paid: 0, associatedTargets: [] };
+                personMap[resolvedBuyer].expected += bid.bidAmount;
+                if (isBuyerPaid) personMap[resolvedBuyer].paid += bid.bidAmount;
+                personMap[resolvedBuyer].associatedTargets.push({
+                  targetId: bid.playerId,
+                  portion: bid.bidAmount,
+                  isPaid: isBuyerPaid,
+                });
+              }
             }
           });
 
@@ -373,15 +443,7 @@ export default function PaymentsTab({
                   earningsList.forEach(e => {
                     const isPaid = (tournament.ownerPayoutPaidIds || []).includes(e.playerId);
                     if (e.hasCalcuttaSplit) {
-                      rows.push({
-                        key: `${e.playerId}-owner`,
-                        playerName: e.playerName,
-                        recipientName: e.calcuttaOwner,
-                        type: 'Owner (50%)',
-                        amount: e.ownerCalcuttaShare,
-                        isPaid,
-                        pId: e.playerId,
-                      });
+                      // Player gets 50% of Calcutta payout
                       rows.push({
                         key: `${e.playerId}-player`,
                         playerName: e.playerName,
@@ -391,16 +453,72 @@ export default function PaymentsTab({
                         isPaid,
                         pId: e.playerId,
                       });
+                      if (e.calcuttaOwner2) {
+                        // Owner 1 gets 25%
+                        rows.push({
+                          key: `${e.playerId}-owner`,
+                          playerName: e.playerName,
+                          recipientName: e.calcuttaOwner,
+                          type: 'Owner 1 (25%)',
+                          amount: e.ownerCalcuttaShare,
+                          isPaid,
+                          pId: e.playerId,
+                        });
+                        // Owner 2 gets 25%
+                        rows.push({
+                          key: `${e.playerId}-owner2`,
+                          playerName: e.playerName,
+                          recipientName: e.calcuttaOwner2,
+                          type: 'Owner 2 (25%)',
+                          amount: e.owner2CalcuttaShare || 0,
+                          isPaid,
+                          pId: e.playerId,
+                        });
+                      } else {
+                        // Single owner gets 50%
+                        rows.push({
+                          key: `${e.playerId}-owner`,
+                          playerName: e.playerName,
+                          recipientName: e.calcuttaOwner,
+                          type: 'Owner (50%)',
+                          amount: e.ownerCalcuttaShare,
+                          isPaid,
+                          pId: e.playerId,
+                        });
+                      }
                     } else {
-                      rows.push({
-                        key: `${e.playerId}-owner`,
-                        playerName: e.playerName,
-                        recipientName: e.calcuttaOwner,
-                        type: 'Owner (100%)',
-                        amount: e.ownerCalcuttaShare,
-                        isPaid,
-                        pId: e.playerId,
-                      });
+                      if (e.calcuttaOwner2) {
+                        // Owner 1 gets 50%
+                        rows.push({
+                          key: `${e.playerId}-owner`,
+                          playerName: e.playerName,
+                          recipientName: e.calcuttaOwner,
+                          type: 'Owner 1 (50%)',
+                          amount: e.ownerCalcuttaShare,
+                          isPaid,
+                          pId: e.playerId,
+                        });
+                        // Owner 2 gets 50%
+                        rows.push({
+                          key: `${e.playerId}-owner2`,
+                          playerName: e.playerName,
+                          recipientName: e.calcuttaOwner2,
+                          type: 'Owner 2 (50%)',
+                          amount: e.owner2CalcuttaShare || 0,
+                          isPaid,
+                          pId: e.playerId,
+                        });
+                      } else {
+                        rows.push({
+                          key: `${e.playerId}-owner`,
+                          playerName: e.playerName,
+                          recipientName: e.calcuttaOwner,
+                          type: 'Owner (100%)',
+                          amount: e.ownerCalcuttaShare,
+                          isPaid,
+                          pId: e.playerId,
+                        });
+                      }
                     }
                   });
 

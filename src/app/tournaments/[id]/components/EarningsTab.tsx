@@ -121,10 +121,18 @@ export default function EarningsTab({ details, tournament }: EarningsTabProps) {
                       {tournament.hasCalcutta && (
                         <>
                           <td className="py-4 px-6 text-slate-200">
-                            {row.calcuttaOwner || '—'}
+                            {row.calcuttaOwner ? (
+                              row.calcuttaOwner2
+                                ? `${row.calcuttaOwner} / ${row.calcuttaOwner2}`
+                                : row.calcuttaOwner
+                            ) : '—'}
                           </td>
                           <td className="py-4 px-6 text-right text-slate-300">
-                            {row.ownerCalcuttaShare > 0 ? `฿${row.ownerCalcuttaShare.toFixed(0)}` : '—'}
+                            {row.ownerCalcuttaShare > 0 ? (
+                              row.calcuttaOwner2 && row.owner2CalcuttaShare !== undefined && row.owner2CalcuttaShare > 0
+                                ? `฿${row.ownerCalcuttaShare.toFixed(0)} / ฿${row.owner2CalcuttaShare.toFixed(0)}`
+                                : `฿${row.ownerCalcuttaShare.toFixed(0)}`
+                            ) : '—'}
                           </td>
                           <td className="py-4 px-6 text-center">
                             {row.calcuttaOwner ? (
@@ -146,9 +154,11 @@ export default function EarningsTab({ details, tournament }: EarningsTabProps) {
                       </td>
                       {tournament.hasCalcutta && (
                         <td className={`py-4 px-6 text-right ${row.netOwnerEarnings >= 0 ? 'text-primary' : 'text-billiard-red'}`}>
-                          {row.calcuttaOwner
-                            ? `${row.netOwnerEarnings >= 0 ? '+' : ''}฿${row.netOwnerEarnings.toFixed(0)}`
-                            : '—'}
+                          {row.calcuttaOwner ? (
+                            row.calcuttaOwner2 && row.netOwner2Earnings !== undefined
+                              ? `${row.netOwnerEarnings >= 0 ? '+' : ''}฿${row.netOwnerEarnings.toFixed(0)} / ${row.netOwner2Earnings >= 0 ? '+' : ''}฿${row.netOwner2Earnings.toFixed(0)}`
+                              : `${row.netOwnerEarnings >= 0 ? '+' : ''}฿${row.netOwnerEarnings.toFixed(0)}`
+                          ) : '—'}
                         </td>
                       )}
                     </tr>

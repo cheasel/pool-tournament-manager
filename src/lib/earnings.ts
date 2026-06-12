@@ -8,13 +8,16 @@ export interface PlayerTournamentEarnings {
   entryFeePaid: number;
   playerPayout: number; // Gross payout from entry fee pool
   calcuttaOwner: string; // Buyer name
+  calcuttaOwner2?: string; // Joint buyer name
   calcuttaBidAmount: number;
   hasCalcuttaSplit: boolean;
   calcuttaPayout: number; // Total calcutta payout for position
   playerCalcuttaShare: number; // Player's portion of Calcutta payout
   ownerCalcuttaShare: number; // Owner's portion of Calcutta payout
+  owner2CalcuttaShare?: number; // Owner 2's portion of Calcutta payout
   netPlayerEarnings: number; // playerPayout + playerCalcuttaShare - entryFeePaid - playerCalcuttaCost
   netOwnerEarnings: number; // ownerCalcuttaShare - ownerCalcuttaCost
+  netOwner2Earnings?: number; // Owner 2 net
 }
 
 export interface TournamentEarningsSummary {
@@ -156,7 +159,12 @@ export function calculateTournamentEarnings(details: TournamentDetails): PlayerT
     const bid = bids.find(b => b.playerId === p.id);
     const bidAmount = bid ? bid.bidAmount : 0;
     const buyerName = bid ? bid.buyerName : '';
+    const buyerName2 = bid ? bid.buyerName2 : undefined;
     const split = bid ? !!bid.split : false;
+
+    const ownerCost = split ? 0.5 * bidAmount : bidAmount;
+    const owner1Cost = buyerName2 ? ownerCost * 0.5 : ownerCost;
+    const owner2Cost = buyerName2 ? ownerCost * 0.5 : 0;
 
     // For active players (rank === 0)
     earningsMap[p.id] = {
@@ -167,13 +175,16 @@ export function calculateTournamentEarnings(details: TournamentDetails): PlayerT
       entryFeePaid: entryFee,
       playerPayout: 0,
       calcuttaOwner: buyerName,
+      calcuttaOwner2: buyerName2,
       calcuttaBidAmount: bidAmount,
       hasCalcuttaSplit: split,
       calcuttaPayout: 0,
       playerCalcuttaShare: 0,
       ownerCalcuttaShare: 0,
+      owner2CalcuttaShare: buyerName2 ? 0 : undefined,
       netPlayerEarnings: -entryFee - (split ? 0.5 * bidAmount : 0),
-      netOwnerEarnings: buyerName ? -(split ? 0.5 * bidAmount : bidAmount) : 0,
+      netOwnerEarnings: buyerName ? -owner1Cost : 0,
+      netOwner2Earnings: buyerName2 ? -owner2Cost : undefined,
     };
   }
 
@@ -204,22 +215,33 @@ export function calculateTournamentEarnings(details: TournamentDetails): PlayerT
 
       const split = record.hasCalcuttaSplit;
       const bidAmount = record.calcuttaBidAmount;
+      const hasSecondOwner = !!record.calcuttaOwner2;
 
       const playerCalcuttaShare = split ? 0.5 * calcuttaPayout : 0;
-      const ownerCalcuttaShare = split ? 0.5 * calcuttaPayout : calcuttaPayout;
+      const totalOwnerShare = split ? 0.5 * calcuttaPayout : calcuttaPayout;
+      const ownerCalcuttaShare = hasSecondOwner ? 0.5 * totalOwnerShare : totalOwnerShare;
+      const owner2CalcuttaShare = hasSecondOwner ? 0.5 * totalOwnerShare : undefined;
 
       const playerCalcuttaCost = split ? 0.5 * bidAmount : 0;
-      const ownerCalcuttaCost = split ? 0.5 * bidAmount : bidAmount;
+      const totalOwnerCost = split ? 0.5 * bidAmount : bidAmount;
+      const ownerCalcuttaCost = hasSecondOwner ? 0.5 * totalOwnerCost : totalOwnerCost;
+      const owner2CalcuttaCost = hasSecondOwner ? 0.5 * totalOwnerCost : 0;
 
       record.playerPayout = playerPayout;
       record.calcuttaPayout = calcuttaPayout;
       record.playerCalcuttaShare = playerCalcuttaShare;
       record.ownerCalcuttaShare = ownerCalcuttaShare;
+      if (hasSecondOwner) {
+        record.owner2CalcuttaShare = owner2CalcuttaShare;
+      }
 
       record.netPlayerEarnings = playerPayout + playerCalcuttaShare - entryFee - playerCalcuttaCost;
       record.netOwnerEarnings = record.calcuttaOwner
         ? ownerCalcuttaShare - ownerCalcuttaCost
         : 0;
+      if (hasSecondOwner) {
+        record.netOwner2Earnings = owner2CalcuttaShare! - owner2CalcuttaCost;
+      }
     }
   });
 
@@ -287,6 +309,26 @@ export function aggregateGlobalEarnings(tournamentsDetails: TournamentDetails[])
           combinedMap[ownerName] = { playerEarnings: 0, ownerEarnings: 0 };
         }
         combinedMap[ownerName].ownerEarnings += earn.ownerCalcuttaShare;
+      }
+
+      // Aggregate owner 2
+      if (earn.calcuttaOwner2) {
+        const owner2Name = earn.calcuttaOwner2.trim();
+        if (!ownerMap[owner2Name]) {
+          ownerMap[owner2Name] = {
+            ownerCalcuttaShare: 0,
+            netOwnerEarnings: 0,
+          };
+        }
+        const oData2 = ownerMap[owner2Name];
+        oData2.ownerCalcuttaShare += earn.owner2CalcuttaShare || 0;
+        oData2.netOwnerEarnings += earn.netOwner2Earnings || 0;
+
+        // Combined - Owner component
+        if (!combinedMap[owner2Name]) {
+          combinedMap[owner2Name] = { playerEarnings: 0, ownerEarnings: 0 };
+        }
+        combinedMap[owner2Name].ownerEarnings += earn.owner2CalcuttaShare || 0;
       }
     }
   }
