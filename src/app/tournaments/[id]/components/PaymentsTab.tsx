@@ -23,7 +23,10 @@ export default function PaymentsTab({
   onTogglePayment,
   renderProgressMeter,
 }: PaymentsTabProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isCreator = !tournament.creatorEmail || tournament.creatorEmail === user?.email;
+  const canEdit = isAuthenticated && (isSuperAdmin || isCreator);
   const allPlayers = players.filter(p => !p.isBye);
   const numRealPlayers = allPlayers.length;
   const entryFee = tournament.entryFee || 0;
@@ -146,10 +149,14 @@ export default function PaymentsTab({
       </div>
 
       {/* Admin required lock warning */}
-      {!isAuthenticated && (
+      {!canEdit && (
         <div className="rounded-lg bg-billiard-orange/10 border border-billiard-orange/20 p-3 flex gap-2 text-xs text-billiard-orange font-bold animate-pulse">
           <Info className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>Admin login required to settle and update payment status records.</span>
+          <span>
+            {isAuthenticated
+              ? 'Only the creator of this tournament or a Super Admin can settle payments.'
+              : 'Admin login required to settle and update payment status records.'}
+          </span>
         </div>
       )}
 
@@ -178,7 +185,7 @@ export default function PaymentsTab({
                             type="checkbox"
                             checked={isPaid}
                             onChange={() => onTogglePayment('entry', p.id)}
-                            disabled={!isAuthenticated}
+                            disabled={!canEdit}
                             className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </label>
@@ -283,7 +290,7 @@ export default function PaymentsTab({
                             type="checkbox"
                             checked={item.isAllPaid}
                             onChange={() => onTogglePayment('calcuttaBid', item.targetIds, item.isAllPaid ? 'unpaid' : 'paid')}
-                            disabled={!isAuthenticated}
+                            disabled={!canEdit}
                             className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </label>
@@ -332,7 +339,7 @@ export default function PaymentsTab({
                               type="checkbox"
                               checked={isPaid}
                               onChange={() => onTogglePayment('payout', row.playerId)}
-                              disabled={!isAuthenticated}
+                              disabled={!canEdit}
                               className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                           </label>
@@ -409,7 +416,7 @@ export default function PaymentsTab({
                             type="checkbox"
                             checked={row.isPaid}
                             onChange={() => onTogglePayment('calcuttaPayout', row.pId)}
-                            disabled={!isAuthenticated}
+                            disabled={!canEdit}
                             className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                         </label>
