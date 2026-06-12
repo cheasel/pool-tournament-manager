@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Player, Tournament, Group, Match, MatchStats, TournamentDetails, CalcuttaBid } from '../../types';
+import { Player, Tournament, Group, Match, MatchStats, TournamentDetails, CalcuttaBid, HandicapHistoryEntry } from '../../types';
 import { initializeGroupMatches, getGroupQualifiers, seedSingleElimination, advanceDoubleEliminationMatch, advanceKnockoutMatches } from '../bracket';
 
 export interface DatabaseAdapter {
@@ -47,8 +47,10 @@ export interface DatabaseAdapter {
   deletePlayer(id: string): Promise<void>;
   updatePlayer(
     id: string,
-    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>
+    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>,
+    changedBy?: string
   ): Promise<Player>;
+  getHandicapHistory(playerId?: string): Promise<HandicapHistoryEntry[]>;
 }
 
 // ----------------------------------------------------
@@ -530,14 +532,39 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
 
   async updatePlayer(
     id: string,
-    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>
+    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>,
+    changedBy?: string
   ): Promise<Player> {
     const currentPlayers = this.getStorageItem<Player[]>('ptm_players', []);
     const idx = currentPlayers.findIndex(p => p.id === id);
     if (idx === -1) throw new Error('Player not found');
 
+    const oldPlayer = currentPlayers[idx];
+    const skillChanged =
+      oldPlayer.skillLevel8 !== player.skillLevel8 ||
+      oldPlayer.skillLevel9 !== player.skillLevel9 ||
+      oldPlayer.skillLevel10 !== player.skillLevel10;
+
+    if (skillChanged) {
+      const historyEntry: HandicapHistoryEntry = {
+        id: Math.random().toString(36).substring(2, 11),
+        playerId: id,
+        changedAt: new Date().toISOString(),
+        oldSkillLevel8: oldPlayer.skillLevel8,
+        oldSkillLevel9: oldPlayer.skillLevel9,
+        oldSkillLevel10: oldPlayer.skillLevel10,
+        newSkillLevel8: player.skillLevel8,
+        newSkillLevel9: player.skillLevel9,
+        newSkillLevel10: player.skillLevel10,
+        changedBy,
+      };
+      const history = this.getStorageItem<HandicapHistoryEntry[]>('ptm_handicap_history', []);
+      history.push(historyEntry);
+      this.setStorageItem('ptm_handicap_history', history);
+    }
+
     const updated = {
-      ...currentPlayers[idx],
+      ...oldPlayer,
       name: player.name,
       skillLevel8: player.skillLevel8,
       skillLevel9: player.skillLevel9,
@@ -547,6 +574,14 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     currentPlayers[idx] = updated;
     this.setStorageItem('ptm_players', currentPlayers);
     return updated;
+  }
+
+  async getHandicapHistory(playerId?: string): Promise<HandicapHistoryEntry[]> {
+    const history = this.getStorageItem<HandicapHistoryEntry[]>('ptm_handicap_history', []);
+    if (playerId) {
+      return history.filter(h => h.playerId === playerId);
+    }
+    return history;
   }
 }
 
@@ -1286,9 +1321,40 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
 
   async updatePlayer(
     id: string,
-    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>
+    player: Omit<Player, 'id' | 'createdAt' | 'isBye'>,
+    changedBy?: string
   ): Promise<Player> {
     try {
+      // Get previous state for comparison
+      const { data: oldPlayer, error: fetchErr } = await this.client
+        .from('players')
+        .select('skill_level_8, skill_level_9, skill_level_10')
+        .eq('id', id)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+
+      const skillChanged =
+        oldPlayer.skill_level_8 !== player.skillLevel8 ||
+        oldPlayer.skill_level_9 !== player.skillLevel9 ||
+        oldPlayer.skill_level_10 !== player.skillLevel10;
+
+      if (skillChanged) {
+        const { error: histErr } = await this.client
+          .from('handicap_history')
+          .insert({
+            player_id: id,
+            old_skill_level_8: oldPlayer.skill_level_8,
+            old_skill_level_9: oldPlayer.skill_level_9,
+            old_skill_level_10: oldPlayer.skill_level_10,
+            new_skill_level_8: player.skillLevel8,
+            new_skill_level_9: player.skillLevel9,
+            new_skill_level_10: player.skillLevel10,
+            changed_by: changedBy,
+          });
+        if (histErr) throw histErr;
+      }
+
       const { data, error } = await this.client
         .from('players')
         .update({
@@ -1312,7 +1378,39 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
       };
     } catch (e) {
       console.warn('Supabase updatePlayer failed, falling back to LocalStorage', e);
-      return localStorageAdapter.updatePlayer(id, player);
+      return localStorageAdapter.updatePlayer(id, player, changedBy);
+    }
+  }
+
+  async getHandicapHistory(playerId?: string): Promise<HandicapHistoryEntry[]> {
+    try {
+      let query = this.client
+        .from('handicap_history')
+        .select('*')
+        .order('changed_at', { ascending: false });
+
+      if (playerId) {
+        query = query.eq('player_id', playerId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return (data || []).map((d: any) => ({
+        id: d.id,
+        playerId: d.player_id,
+        changedAt: d.changed_at,
+        oldSkillLevel8: d.old_skill_level_8,
+        oldSkillLevel9: d.old_skill_level_9,
+        oldSkillLevel10: d.old_skill_level_10,
+        newSkillLevel8: d.new_skill_level_8,
+        newSkillLevel9: d.new_skill_level_9,
+        newSkillLevel10: d.new_skill_level_10,
+        changedBy: d.changed_by,
+      }));
+    } catch (e) {
+      console.warn('Supabase getHandicapHistory failed, falling back to LocalStorage', e);
+      return localStorageAdapter.getHandicapHistory(playerId);
     }
   }
 }

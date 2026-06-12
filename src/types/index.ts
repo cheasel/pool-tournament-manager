@@ -82,3 +82,17 @@ export interface TournamentDetails {
   groups: Group[];
   matches: Match[];
 }
+
+export interface HandicapHistoryEntry {
+  id: string;
+  playerId: string;
+  changedAt: string;
+  oldSkillLevel8: number;
+  oldSkillLevel9: number;
+  oldSkillLevel10: number;
+  newSkillLevel8: number;
+  newSkillLevel9: number;
+  newSkillLevel10: number;
+  changedBy?: string;
+}
+

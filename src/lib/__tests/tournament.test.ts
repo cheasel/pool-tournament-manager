@@ -478,5 +478,52 @@ describe('Bracket Engine Tests', () => {
     // Clean up
     await db.deletePlayer(player.id);
   });
+
+  it('records handicap change history when player handicaps are updated', async () => {
+    const db = getDatabaseAdapter();
+    const player = await db.createPlayer({
+      name: 'History Test Player',
+      skillLevel8: 10,
+      skillLevel9: 10,
+      skillLevel10: 10,
+    });
+
+    // 1. Update ONLY the name (no handicap change)
+    await db.updatePlayer(player.id, {
+      name: 'History Test Player Renamed',
+      skillLevel8: 10,
+      skillLevel9: 10,
+      skillLevel10: 10,
+    }, 'admin@rackmaster.com');
+
+    // Verify no history is recorded yet
+    let history = await db.getHandicapHistory(player.id);
+    expect(history.length).toBe(0);
+
+    // 2. Update handicaps (should record history)
+    await db.updatePlayer(player.id, {
+      name: 'History Test Player Renamed',
+      skillLevel8: 12,
+      skillLevel9: 10,
+      skillLevel10: 15,
+    }, 'admin@rackmaster.com');
+
+    history = await db.getHandicapHistory(player.id);
+    expect(history.length).toBe(1);
+
+    const entry = history[0];
+    expect(entry.playerId).toBe(player.id);
+    expect(entry.oldSkillLevel8).toBe(10);
+    expect(entry.oldSkillLevel9).toBe(10);
+    expect(entry.oldSkillLevel10).toBe(10);
+    expect(entry.newSkillLevel8).toBe(12);
+    expect(entry.newSkillLevel9).toBe(10);
+    expect(entry.newSkillLevel10).toBe(15);
+    expect(entry.changedBy).toBe('admin@rackmaster.com');
+    expect(entry.changedAt).toBeTruthy();
+
+    // Clean up
+    await db.deletePlayer(player.id);
+  });
 });
 

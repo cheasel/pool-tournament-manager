@@ -70,7 +70,7 @@ export default function PlayersPage() {
           skillLevel8: sl8,
           skillLevel9: sl9,
           skillLevel10: sl10,
-        });
+        }, user?.email);
         setPlayers(prev => prev.map(p => p.id === updated.id ? updated : p));
         setEditingPlayer(null);
         setMessage(`Successfully updated ${updated.name}!`);
