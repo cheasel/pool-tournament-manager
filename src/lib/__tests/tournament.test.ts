@@ -373,5 +373,50 @@ describe('Bracket Engine Tests', () => {
     const reFetched = await db.getTournamentDetails(tournament.id);
     expect(reFetched).toBeNull();
   });
+
+  it('swaps two players in different groups and regenerates their group matches successfully', async () => {
+    const db = getDatabaseAdapter();
+    // 16 players to form exactly 2 groups of 8
+    const playersRoster = [
+      'efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland', 'albin', 'bustamante',
+      'ko_pin_yi', 'pagulayan', 'john_doe', 'jane_smith', 'dave_c', 'sarah_j', 'mike_t', 'amy_w'
+    ];
+
+    const tournament = await db.createTournament(
+      'Swap Test Tourney',
+      '8-Ball',
+      playersRoster,
+      50,
+      [60, 40],
+      false
+    );
+
+    const details = await db.getTournamentDetails(tournament.id);
+    expect(details).toBeTruthy();
+    expect(details?.groups.length).toBe(2);
+
+    const groupA = details!.groups[0];
+    const groupB = details!.groups[1];
+
+    const playerA = groupA.playerIds[0];
+    const playerB = groupB.playerIds[0];
+
+    // Swap playerA (Group A) and playerB (Group B)
+    const updatedDetails = await db.swapTournamentPlayers(tournament.id, playerA, playerB);
+
+    expect(updatedDetails).toBeTruthy();
+    // Group A should now have playerB and not playerA
+    const updatedGroupA = updatedDetails.groups.find(g => g.id === groupA.id);
+    expect(updatedGroupA?.playerIds.includes(playerB)).toBe(true);
+    expect(updatedGroupA?.playerIds.includes(playerA)).toBe(false);
+
+    // Group B should now have playerA and not playerB
+    const updatedGroupB = updatedDetails.groups.find(g => g.id === groupB.id);
+    expect(updatedGroupB?.playerIds.includes(playerA)).toBe(true);
+    expect(updatedGroupB?.playerIds.includes(playerB)).toBe(false);
+
+    // Clean up
+    await db.deleteTournament(tournament.id);
+  });
 });
 

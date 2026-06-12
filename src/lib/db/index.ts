@@ -39,6 +39,11 @@ export interface DatabaseAdapter {
     ownerPayoutPaidIds: string[]
   ): Promise<TournamentDetails>;
   deleteTournament(id: string): Promise<void>;
+  swapTournamentPlayers(
+    tournamentId: string,
+    player1Id: string,
+    player2Id: string
+  ): Promise<TournamentDetails>;
 }
 
 // ----------------------------------------------------
@@ -443,6 +448,74 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
 
     const currentMatches = this.getStorageItem<Match[]>('ptm_matches', []);
     this.setStorageItem('ptm_matches', currentMatches.filter(m => m.tournamentId !== id));
+  }
+
+  async swapTournamentPlayers(
+    tournamentId: string,
+    player1Id: string,
+    player2Id: string
+  ): Promise<TournamentDetails> {
+    const details = await this.getTournamentDetails(tournamentId);
+    if (!details) throw new Error('Tournament not found');
+
+    const group1 = details.groups.find(g => g.playerIds.includes(player1Id));
+    const group2 = details.groups.find(g => g.playerIds.includes(player2Id));
+
+    if (!group1 || !group2) throw new Error('Player(s) not found in any group');
+
+    const idx1 = group1.playerIds.indexOf(player1Id);
+    const idx2 = group2.playerIds.indexOf(player2Id);
+
+    // Swap player IDs in the respective groups
+    group1.playerIds[idx1] = player2Id;
+    group2.playerIds[idx2] = player1Id;
+
+    const playersMap = details.players.reduce((acc, p) => {
+      acc[p.id] = p;
+      return acc;
+    }, {} as Record<string, Player>);
+
+    // Regenerate matches for group1
+    const newGroup1Matches = initializeGroupMatches(
+      tournamentId,
+      group1,
+      playersMap,
+      details.tournament.gameType
+    );
+
+    let updatedMatches = [
+      ...details.matches.filter(m => m.groupId !== group1.id),
+      ...newGroup1Matches
+    ];
+
+    // Regenerate matches for group2 if it's different from group1
+    if (group1.id !== group2.id) {
+      const newGroup2Matches = initializeGroupMatches(
+        tournamentId,
+        group2,
+        playersMap,
+        details.tournament.gameType
+      );
+      updatedMatches = [
+        ...updatedMatches.filter(m => m.groupId !== group2.id),
+        ...newGroup2Matches
+      ];
+    }
+
+    details.matches = updatedMatches;
+
+    // Save back to local storage
+    const allMatches = this.getStorageItem<Match[]>('ptm_matches', []).filter(m => m.tournamentId !== tournamentId);
+    this.setStorageItem('ptm_matches', [...allMatches, ...details.matches]);
+
+    const groups = this.getStorageItem<Group[]>('ptm_groups', []).map(g => {
+      if (g.id === group1.id) return group1;
+      if (g.id === group2.id) return group2;
+      return g;
+    });
+    this.setStorageItem('ptm_groups', groups);
+
+    return details;
   }
 }
 
@@ -1057,6 +1130,113 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase deleteTournament failed, falling back to LocalStorage', e);
       await localStorageAdapter.deleteTournament(id);
+    }
+  }
+
+  async swapTournamentPlayers(
+    tournamentId: string,
+    player1Id: string,
+    player2Id: string
+  ): Promise<TournamentDetails> {
+    try {
+      const details = await this.getTournamentDetails(tournamentId);
+      if (!details) throw new Error('Tournament details not found in Supabase');
+
+      const group1 = details.groups.find(g => g.playerIds.includes(player1Id));
+      const group2 = details.groups.find(g => g.playerIds.includes(player2Id));
+
+      if (!group1 || !group2) throw new Error('Player(s) not found in any group in Supabase');
+
+      const idx1 = group1.playerIds.indexOf(player1Id);
+      const idx2 = group2.playerIds.indexOf(player2Id);
+
+      // Swap player IDs in the group states in memory
+      group1.playerIds[idx1] = player2Id;
+      group2.playerIds[idx2] = player1Id;
+
+      const playersMap = details.players.reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {} as Record<string, Player>);
+
+      // Regenerate matches for group1
+      const newGroup1Matches = initializeGroupMatches(
+        tournamentId,
+        group1,
+        playersMap,
+        details.tournament.gameType
+      );
+
+      // Update group1 in Supabase
+      const { error: grpErr1 } = await this.client
+        .from('groups')
+        .update({ player_ids: group1.playerIds })
+        .eq('id', group1.id);
+      if (grpErr1) throw grpErr1;
+
+      // Delete old matches for group1 in Supabase
+      const { error: delErr1 } = await this.client
+        .from('matches')
+        .delete()
+        .eq('group_id', group1.id);
+      if (delErr1) throw delErr1;
+
+      let allNewMatches = [...newGroup1Matches];
+
+      // Update group2 if it's different from group1
+      if (group1.id !== group2.id) {
+        const newGroup2Matches = initializeGroupMatches(
+          tournamentId,
+          group2,
+          playersMap,
+          details.tournament.gameType
+        );
+
+        const { error: grpErr2 } = await this.client
+          .from('groups')
+          .update({ player_ids: group2.playerIds })
+          .eq('id', group2.id);
+        if (grpErr2) throw grpErr2;
+
+        const { error: delErr2 } = await this.client
+          .from('matches')
+          .delete()
+          .eq('group_id', group2.id);
+        if (delErr2) throw delErr2;
+
+        allNewMatches = [...allNewMatches, ...newGroup2Matches];
+      }
+
+      // Insert all regenerated matches in Supabase
+      const dbMatches = allNewMatches.map(m => ({
+        id: m.id,
+        tournament_id: tournamentId,
+        group_id: m.groupId,
+        round_type: m.roundType,
+        round_number: m.roundNumber,
+        match_number: m.matchNumber,
+        player1_id: m.player1Id || null,
+        player2_id: m.player2Id || null,
+        player1_score: m.player1Score,
+        player2_score: m.player2Score,
+        player1_target: m.player1Target,
+        player2_target: m.player2Target,
+        player1_spotted_balls: m.player1SpottedBalls,
+        player2_spotted_balls: m.player2SpottedBalls,
+        status: m.status,
+        winner_id: m.winnerId || null,
+      }));
+
+      const { error: insErr } = await this.client.from('matches').insert(dbMatches);
+      if (insErr) throw insErr;
+
+      // Return refreshed details
+      const refreshed = await this.getTournamentDetails(tournamentId);
+      if (!refreshed) throw new Error('Failed to retrieve refreshed details');
+      return refreshed;
+    } catch (e) {
+      console.warn('Supabase swapTournamentPlayers failed, falling back to LocalStorage', e);
+      return localStorageAdapter.swapTournamentPlayers(tournamentId, player1Id, player2Id);
     }
   }
 }
