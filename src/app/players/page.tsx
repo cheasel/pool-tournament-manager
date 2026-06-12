@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { Player } from '@/types';
 import { getDatabaseAdapter } from '@/lib/db';
-import { Search, Plus, User, Info, Lock } from 'lucide-react';
+import { Search, Plus, User, Info, Lock, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 export default function PlayersPage() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
   const [players, setPlayers] = useState<Player[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [name, setName] = useState('');
@@ -64,6 +65,21 @@ export default function PlayersPage() {
     } catch (err) {
       console.error(err);
       setError('Failed to register player');
+    }
+  };
+
+  const handleDeletePlayer = async (playerId: string, name: string) => {
+    if (!isSuperAdmin) return;
+    if (confirm(`Are you sure you want to delete player "${name}"? This action cannot be undone.`)) {
+      try {
+        await db.deletePlayer(playerId);
+        setPlayers(prev => prev.filter(p => p.id !== playerId));
+        setMessage(`Successfully deleted ${name}`);
+        setTimeout(() => setMessage(''), 3000);
+      } catch (err) {
+        console.error('Failed to delete player:', err);
+        setError('Failed to delete player');
+      }
     }
   };
 
@@ -274,6 +290,16 @@ export default function PlayersPage() {
                       </span>
                     </div>
                   </div>
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePlayer(player.id, player.name)}
+                      className="p-2 rounded-lg bg-billiard-red/10 border border-billiard-red/25 text-billiard-red hover:bg-billiard-red hover:text-white hover:shadow-[0_0_8px_rgba(239,68,68,0.3)] transition-all cursor-pointer select-none shrink-0"
+                      title="Delete Player"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
