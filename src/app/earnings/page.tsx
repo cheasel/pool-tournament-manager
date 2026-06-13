@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { getDatabaseAdapter } from '@/lib/db';
 import { TournamentDetails } from '@/types';
 import {
@@ -23,6 +24,7 @@ import {
 export default function EarningsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [nameToIdMap, setNameToIdMap] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'combined' | 'player' | 'owner'>('combined');
   const [stats, setStats] = useState<{
     players: PlayerGlobalEarnings[];
@@ -42,6 +44,13 @@ export default function EarningsPage() {
     async function loadEarningsData() {
       try {
         const tournamentsList = await db.getTournaments();
+        const playersList = await db.getPlayers();
+        const mapping: Record<string, string> = {};
+        playersList.forEach(p => {
+          mapping[p.name.toLowerCase()] = p.id;
+        });
+        setNameToIdMap(mapping);
+
         // Load details for each tournament
         const detailsList: TournamentDetails[] = [];
         for (const t of tournamentsList) {
@@ -274,7 +283,15 @@ export default function EarningsPage() {
                               <span className="text-muted-foreground font-medium">{idx + 1}</span>
                             )}
                           </td>
-                          <td className="py-4 px-6 text-sm text-white font-black">{row.name}</td>
+                          <td className="py-4 px-6 text-sm text-white font-black">
+                            {nameToIdMap[row.name.toLowerCase()] ? (
+                              <Link href={`/players/${nameToIdMap[row.name.toLowerCase()]}`} className="hover:text-primary transition-colors hover:underline">
+                                {row.name}
+                              </Link>
+                            ) : (
+                              row.name
+                            )}
+                          </td>
                           <td className="py-4 px-6 text-right text-slate-300">
                             {row.playerEarnings > 0 ? formatCurrency(row.playerEarnings) : '—'}
                           </td>
@@ -335,7 +352,11 @@ export default function EarningsPage() {
                               <span className="text-muted-foreground font-medium">{idx + 1}</span>
                             )}
                           </td>
-                          <td className="py-4 px-6 text-sm text-white font-black">{row.playerName}</td>
+                          <td className="py-4 px-6 text-sm text-white font-black">
+                            <Link href={`/players/${row.playerId}`} className="hover:text-primary transition-colors hover:underline">
+                              {row.playerName}
+                            </Link>
+                          </td>
                           <td className="py-4 px-6 text-right text-slate-300">
                             {row.playerPayout > 0 ? formatCurrency(row.playerPayout) : '—'}
                           </td>
@@ -397,7 +418,15 @@ export default function EarningsPage() {
                               <span className="text-muted-foreground font-medium">{idx + 1}</span>
                             )}
                           </td>
-                          <td className="py-4 px-6 text-sm text-white font-black">{row.ownerName}</td>
+                          <td className="py-4 px-6 text-sm text-white font-black">
+                            {nameToIdMap[row.ownerName.toLowerCase()] ? (
+                              <Link href={`/players/${nameToIdMap[row.ownerName.toLowerCase()]}`} className="hover:text-primary transition-colors hover:underline">
+                                {row.ownerName}
+                              </Link>
+                            ) : (
+                              row.ownerName
+                            )}
+                          </td>
                           <td className="py-4 px-6 text-right text-slate-300">
                             {row.ownerCalcuttaShare > 0 ? formatCurrency(row.ownerCalcuttaShare) : '—'}
                           </td>
