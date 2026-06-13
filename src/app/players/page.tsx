@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Player } from '@/types';
 import { getDatabaseAdapter } from '@/lib/db';
 import { Search, Plus, User, Info, Lock, Trash2, Edit3 } from 'lucide-react';
@@ -314,11 +315,21 @@ export default function PlayersPage() {
                   key={player.id}
                   className="glass-panel glass-panel-hover rounded-xl p-5 flex items-start gap-4"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 text-base font-bold uppercase">
-                    {player.name.charAt(0)}{player.name.split(' ')[1]?.charAt(0) || ''}
-                  </div>
+                  <Link href={`/players/${player.id}`} className="shrink-0">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20 hover:border-primary/50 hover:bg-primary hover:text-background text-base font-bold uppercase transition-all duration-200 cursor-pointer">
+                      {player.name.charAt(0)}{player.name.split(' ')[1]?.charAt(0) || ''}
+                    </div>
+                  </Link>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-bold text-white truncate">{player.name}</h3>
+                    <Link
+                      href={`/players/${player.id}`}
+                      className="hover:text-primary transition-colors inline-flex items-center gap-1.5 group"
+                    >
+                      <h3 className="text-base font-bold text-white group-hover:text-primary truncate transition-colors">
+                        {player.name}
+                      </h3>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+                    </Link>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
                       Registered: {new Date(player.createdAt).toLocaleDateString()}
                     </p>
