@@ -505,6 +505,39 @@ export default function TournamentDetailPage() {
   const knockoutMatches = matches.filter(m => m.roundType === 'knockout');
   const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(m => m.roundNumber)) : 0;
 
+  const renderBallIcon = (num: number) => {
+    let style: React.CSSProperties = {};
+    let textColor = 'text-white';
+    
+    if (num === 1) { style = { backgroundColor: '#f1c40f' }; textColor = 'text-slate-950'; }
+    else if (num === 2) { style = { backgroundColor: '#2980b9' }; }
+    else if (num === 3) { style = { backgroundColor: '#e74c3c' }; }
+    else if (num === 4) { style = { backgroundColor: '#8e44ad' }; }
+    else if (num === 5) { style = { backgroundColor: '#e67e22' }; }
+    else if (num === 6) { style = { backgroundColor: '#27ae60' }; }
+    else if (num === 7) { style = { backgroundColor: '#7e5109' }; }
+    else if (num === 8) { style = { backgroundColor: '#111111', border: '1px solid #333' }; }
+    else if (num === 9) { 
+      style = { background: 'linear-gradient(to bottom, #f1c40f 20%, #ffffff 20%, #ffffff 80%, #f1c40f 80%)' }; 
+      textColor = 'text-slate-950'; 
+    }
+    else if (num === 10) { 
+      style = { background: 'linear-gradient(to bottom, #2980b9 20%, #ffffff 20%, #ffffff 80%, #2980b9 80%)' }; 
+      textColor = 'text-slate-950'; 
+    }
+    else { style = { backgroundColor: '#7f8c8d' }; }
+
+    return (
+      <span
+        key={num}
+        style={style}
+        className="h-4.5 w-4.5 rounded-full inline-flex items-center justify-center text-[8px] font-black shadow-sm shrink-0 select-none"
+      >
+        <span className={textColor}>{num}</span>
+      </span>
+    );
+  };
+
   // Render a match card
   const renderMatchCard = (match: Match) => {
     const p1 = getPlayer(match.player1Id);
@@ -521,15 +554,6 @@ export default function TournamentDetailPage() {
 
     const isP1Selected = swapKnockoutSourcePlayer?.playerId === match.player1Id;
     const isP2Selected = swapKnockoutSourcePlayer?.playerId === match.player2Id;
-
-    const formatBilliardBall = (spotArray: number[]) => {
-      if (spotArray.length === 0) return null;
-      return (
-        <span className="flex gap-1 ml-2 text-[9px] font-bold text-accent">
-          Spot: {spotArray.join(', ')}
-        </span>
-      );
-    };
 
     return (
       <div
@@ -548,40 +572,48 @@ export default function TournamentDetailPage() {
         </div>
 
         {/* Player 1 Row */}
-        <div className="flex items-center justify-between py-1">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-start justify-between py-1">
+          <div className="flex items-start gap-2 min-w-0 flex-1">
             <span
-              className={`h-2.5 w-2.5 rounded-full ${
+              className={`h-2.5 w-2.5 rounded-full mt-1.5 shrink-0 ${
                 isCompleted ? (isP1Winner ? 'bg-primary' : 'bg-muted') : 'bg-slate-500'
               }`}
             />
-            <span
-              onClick={(e) => {
-                if (canSwapP1) {
-                  e.stopPropagation();
-                  handleKnockoutPlayerSwapClick(match.player1Id, p1.isBye ? 'BYE' : p1.name);
-                }
-              }}
-              className={`text-xs font-bold truncate px-1 rounded transition-all duration-200 ${
-                canSwapP1 ? 'cursor-pointer' : ''
-              } ${
-                isP1Selected
-                  ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse font-extrabold'
-                  : canSwapP1
-                    ? 'bg-slate-800 text-white hover:bg-primary hover:text-slate-950 font-extrabold shadow-[0_0_8px_rgba(16,185,129,0.2)]'
-                    : isCompleted ? (isP1Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'
-              }`}
-            >
-              {p1.name}
-            </span>
-            {!p1.isBye && match.player1Id && (
-              <span className="text-[9px] font-medium text-muted-foreground">
-                (SL{tournament.gameType === '8-Ball' ? p1.skillLevel8 : tournament.gameType === '9-Ball' ? p1.skillLevel9 : p1.skillLevel10})
-              </span>
-            )}
-            {formatBilliardBall(match.player1SpottedBalls)}
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span
+                  onClick={(e) => {
+                    if (canSwapP1) {
+                      e.stopPropagation();
+                      handleKnockoutPlayerSwapClick(match.player1Id, p1.isBye ? 'BYE' : p1.name);
+                    }
+                  }}
+                  className={`text-xs font-bold truncate px-1 rounded transition-all duration-200 ${
+                    canSwapP1 ? 'cursor-pointer' : ''
+                  } ${
+                    isP1Selected
+                      ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse font-extrabold'
+                      : canSwapP1
+                        ? 'bg-slate-800 text-white hover:bg-primary hover:text-slate-950 font-extrabold shadow-[0_0_8px_rgba(16,185,129,0.2)]'
+                        : isCompleted ? (isP1Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'
+                  }`}
+                >
+                  {p1.name}
+                </span>
+                {!p1.isBye && match.player1Id && (
+                  <span className="text-[9px] font-medium text-muted-foreground">
+                    (A{tournament.gameType === '8-Ball' ? p1.skillLevel8 : tournament.gameType === '9-Ball' ? p1.skillLevel9 : p1.skillLevel10})
+                  </span>
+                )}
+              </div>
+              {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
+                <div className="flex gap-1 mt-1">
+                  {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-0.5 shrink-0">
             {isCompleted ? (
               <span className={`text-xs font-black px-1.5 rounded ${isP1Winner ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}>
                 {match.player1Score}
@@ -595,40 +627,48 @@ export default function TournamentDetailPage() {
         </div>
 
         {/* Player 2 Row */}
-        <div className="flex items-center justify-between py-1 mt-1">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-start justify-between py-1 mt-1">
+          <div className="flex items-start gap-2 min-w-0 flex-1">
             <span
-              className={`h-2.5 w-2.5 rounded-full ${
+              className={`h-2.5 w-2.5 rounded-full mt-1.5 shrink-0 ${
                 isCompleted ? (isP2Winner ? 'bg-primary' : 'bg-muted') : 'bg-slate-500'
               }`}
             />
-            <span
-              onClick={(e) => {
-                if (canSwapP2) {
-                  e.stopPropagation();
-                  handleKnockoutPlayerSwapClick(match.player2Id, p2.isBye ? 'BYE' : p2.name);
-                }
-              }}
-              className={`text-xs font-bold truncate px-1 rounded transition-all duration-200 ${
-                canSwapP2 ? 'cursor-pointer' : ''
-              } ${
-                isP2Selected
-                  ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse font-extrabold'
-                  : canSwapP2
-                    ? 'bg-slate-800 text-white hover:bg-primary hover:text-slate-950 font-extrabold shadow-[0_0_8px_rgba(16,185,129,0.2)]'
-                    : isCompleted ? (isP2Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'
-              }`}
-            >
-              {p2.name}
-            </span>
-            {!p2.isBye && match.player2Id && (
-              <span className="text-[9px] font-medium text-muted-foreground">
-                (SL{tournament.gameType === '8-Ball' ? p2.skillLevel8 : tournament.gameType === '9-Ball' ? p2.skillLevel9 : p2.skillLevel10})
-              </span>
-            )}
-            {formatBilliardBall(match.player2SpottedBalls)}
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span
+                  onClick={(e) => {
+                    if (canSwapP2) {
+                      e.stopPropagation();
+                      handleKnockoutPlayerSwapClick(match.player2Id, p2.isBye ? 'BYE' : p2.name);
+                    }
+                  }}
+                  className={`text-xs font-bold truncate px-1 rounded transition-all duration-200 ${
+                    canSwapP2 ? 'cursor-pointer' : ''
+                  } ${
+                    isP2Selected
+                      ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 ring-offset-1 ring-offset-slate-950 animate-pulse font-extrabold'
+                      : canSwapP2
+                        ? 'bg-slate-800 text-white hover:bg-primary hover:text-slate-950 font-extrabold shadow-[0_0_8px_rgba(16,185,129,0.2)]'
+                        : isCompleted ? (isP2Winner ? 'text-white' : 'text-muted-foreground') : 'text-slate-200'
+                  }`}
+                >
+                  {p2.name}
+                </span>
+                {!p2.isBye && match.player2Id && (
+                  <span className="text-[9px] font-medium text-muted-foreground">
+                    (A{tournament.gameType === '8-Ball' ? p2.skillLevel8 : tournament.gameType === '9-Ball' ? p2.skillLevel9 : p2.skillLevel10})
+                  </span>
+                )}
+              </div>
+              {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
+                <div className="flex gap-1 mt-1">
+                  {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mt-0.5 shrink-0">
             {isCompleted ? (
               <span className={`text-xs font-black px-1.5 rounded ${isP2Winner ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}>
                 {match.player2Score}
@@ -716,18 +756,18 @@ export default function TournamentDetailPage() {
         </div>
 
         {/* Player 1 Row */}
-        <div className="flex items-center text-xs h-6">
+        <div className="flex items-start text-xs min-h-6 py-0.5">
           {/* Target (Green) */}
-          <span className="w-5 h-5 inline-flex items-center justify-center font-extrabold bg-emerald-500 text-slate-950 rounded text-[10px] shrink-0">
+          <span className="w-5 h-5 inline-flex items-center justify-center font-extrabold bg-emerald-500 text-slate-950 rounded text-[10px] shrink-0 mt-px">
             {match.player1Target}
           </span>
           {/* Seed (Orange) */}
           {match.player1Id && !p1.isBye ? (
-            <span className="w-8 h-5 inline-flex items-center justify-center font-extrabold bg-orange-600 text-white rounded text-[9px] ml-1 shrink-0">
+            <span className="w-8 h-5 inline-flex items-center justify-center font-extrabold bg-orange-600 text-white rounded text-[9px] ml-1 shrink-0 mt-px">
               {getSeedCode(match.player1Id)}
             </span>
           ) : (
-            <span className="w-8 h-5 inline-flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[9px] ml-1 shrink-0">
+            <span className="w-8 h-5 inline-flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[9px] ml-1 shrink-0 mt-px">
               -
             </span>
           )}
@@ -739,7 +779,7 @@ export default function TournamentDetailPage() {
                 handlePlayerSwapClick(match.player1Id, p1.isBye ? 'BYE' : p1.name);
               }
             }}
-            className={`flex-1 h-5 px-1.5 ml-1 font-extrabold rounded truncate flex items-center justify-between text-[10px] transition-all duration-200 ${
+            className={`flex-1 min-h-5 px-1.5 ml-1 font-extrabold rounded flex flex-col justify-center text-[10px] transition-all duration-200 ${
               canSwapThisMatch ? 'cursor-pointer' : ''
             } ${
               isP1Selected 
@@ -749,32 +789,39 @@ export default function TournamentDetailPage() {
                   : 'bg-slate-100 text-slate-900'
             }`}
           >
-            <span className="truncate">{p1.isBye ? 'BYE' : p1.name || 'TBD'}</span>
-            {!p1.isBye && match.player1Id && (
-              <span className="text-[9px] font-bold text-slate-500 shrink-0 ml-1">
-                SL{tournament.gameType === '8-Ball' ? p1.skillLevel8 : tournament.gameType === '9-Ball' ? p1.skillLevel9 : p1.skillLevel10}
-              </span>
+            <div className="flex items-center justify-between w-full min-w-0">
+              <span className="truncate">{p1.isBye ? 'BYE' : p1.name || 'TBD'}</span>
+              {!p1.isBye && match.player1Id && (
+                <span className="text-[9px] font-bold text-slate-500 shrink-0 ml-1">
+                  A{tournament.gameType === '8-Ball' ? p1.skillLevel8 : tournament.gameType === '9-Ball' ? p1.skillLevel9 : p1.skillLevel10}
+                </span>
+              )}
+            </div>
+            {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1 pb-0.5">
+                {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+              </div>
             )}
           </span>
           {/* Score (Blue-green) */}
-          <span className="w-7 h-5 inline-flex items-center justify-center font-black bg-teal-600 text-white rounded text-[10px] ml-1 shrink-0">
+          <span className="w-7 h-5 inline-flex items-center justify-center font-black bg-teal-600 text-white rounded text-[10px] ml-1 shrink-0 mt-px">
             {isCompleted ? match.player1Score : '-'}
           </span>
         </div>
 
         {/* Player 2 Row */}
-        <div className="flex items-center text-xs h-6">
+        <div className="flex items-start text-xs min-h-6 py-0.5">
           {/* Target (Green) */}
-          <span className="w-5 h-5 inline-flex items-center justify-center font-extrabold bg-emerald-500 text-slate-950 rounded text-[10px] shrink-0">
+          <span className="w-5 h-5 inline-flex items-center justify-center font-extrabold bg-emerald-500 text-slate-950 rounded text-[10px] shrink-0 mt-px">
             {match.player2Target}
           </span>
           {/* Seed (Orange) */}
           {match.player2Id && !p2.isBye ? (
-            <span className="w-8 h-5 inline-flex items-center justify-center font-extrabold bg-orange-600 text-white rounded text-[9px] ml-1 shrink-0">
+            <span className="w-8 h-5 inline-flex items-center justify-center font-extrabold bg-orange-600 text-white rounded text-[9px] ml-1 shrink-0 mt-px">
               {getSeedCode(match.player2Id)}
             </span>
           ) : (
-            <span className="w-8 h-5 inline-flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[9px] ml-1 shrink-0">
+            <span className="w-8 h-5 inline-flex items-center justify-center bg-slate-800 text-slate-500 rounded text-[9px] ml-1 shrink-0 mt-px">
               -
             </span>
           )}
@@ -786,7 +833,7 @@ export default function TournamentDetailPage() {
                 handlePlayerSwapClick(match.player2Id, p2.isBye ? 'BYE' : p2.name);
               }
             }}
-            className={`flex-1 h-5 px-1.5 ml-1 font-extrabold rounded truncate flex items-center justify-between text-[10px] transition-all duration-200 ${
+            className={`flex-1 min-h-5 px-1.5 ml-1 font-extrabold rounded flex flex-col justify-center text-[10px] transition-all duration-200 ${
               canSwapThisMatch ? 'cursor-pointer' : ''
             } ${
               isP2Selected 
@@ -796,35 +843,25 @@ export default function TournamentDetailPage() {
                   : 'bg-slate-100 text-slate-900'
             }`}
           >
-            <span className="truncate">{p2.isBye ? 'BYE' : p2.name || 'TBD'}</span>
-            {!p2.isBye && match.player2Id && (
-              <span className="text-[9px] font-bold text-slate-500 shrink-0 ml-1">
-                SL{tournament.gameType === '8-Ball' ? p2.skillLevel8 : tournament.gameType === '9-Ball' ? p2.skillLevel9 : p2.skillLevel10}
-              </span>
+            <div className="flex items-center justify-between w-full min-w-0">
+              <span className="truncate">{p2.isBye ? 'BYE' : p2.name || 'TBD'}</span>
+              {!p2.isBye && match.player2Id && (
+                <span className="text-[9px] font-bold text-slate-500 shrink-0 ml-1">
+                  A{tournament.gameType === '8-Ball' ? p2.skillLevel8 : tournament.gameType === '9-Ball' ? p2.skillLevel9 : p2.skillLevel10}
+                </span>
+              )}
+            </div>
+            {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1 pb-0.5">
+                {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+              </div>
             )}
           </span>
           {/* Score (Blue-green) */}
-          <span className="w-7 h-5 inline-flex items-center justify-center font-black bg-teal-600 text-white rounded text-[10px] ml-1 shrink-0">
+          <span className="w-7 h-5 inline-flex items-center justify-center font-black bg-teal-600 text-white rounded text-[10px] ml-1 shrink-0 mt-px">
             {isCompleted ? match.player2Score : '-'}
           </span>
         </div>
-
-        {/* Spotted balls info */}
-        {((match.player1SpottedBalls && match.player1SpottedBalls.length > 0) || 
-          (match.player2SpottedBalls && match.player2SpottedBalls.length > 0)) && (
-          <div className="text-[9px] font-bold text-accent/90 bg-slate-950/40 px-1.5 py-0.5 rounded border border-accent/10 flex flex-col gap-0.5 mt-0.5 shrink-0">
-            {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
-              <span className="truncate">
-                {p1.name} gets Spot: {match.player1SpottedBalls.join(', ')}
-              </span>
-            )}
-            {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
-              <span className="truncate">
-                {p2.name} gets Spot: {match.player2SpottedBalls.join(', ')}
-              </span>
-            )}
-          </div>
-        )}
       </div>
     );
   };
