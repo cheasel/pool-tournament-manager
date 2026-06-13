@@ -45,12 +45,20 @@ export default function Header() {
               Earnings
             </Link>
             {isAuthenticated && user?.role === 'super_admin' && (
-              <Link
-                href="/handicaps"
-                className="text-sm font-medium text-muted-foreground hover:text-white transition-colors duration-200"
-              >
-                Races
-              </Link>
+              <>
+                <Link
+                  href="/handicaps"
+                  className="text-sm font-medium text-muted-foreground hover:text-white transition-colors duration-200"
+                >
+                  Races
+                </Link>
+                <Link
+                  href="/users"
+                  className="text-sm font-medium text-muted-foreground hover:text-white transition-colors duration-200"
+                >
+                  Users
+                </Link>
+              </>
             )}
             <Link
               href="/tournaments/create"
