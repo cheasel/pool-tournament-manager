@@ -94,6 +94,31 @@ export default function TournamentDetailPage() {
           else playerPayoutPaidIds.push(t);
         }
       } else if (category === 'calcuttaPayout') {
+        const basePlayerId = t.includes('-') ? t.split('-')[0] : t;
+        const baseIdx = ownerPayoutPaidIds.indexOf(basePlayerId);
+        
+        // Expand legacy single-player paid entry if present
+        if (baseIdx > -1) {
+          ownerPayoutPaidIds.splice(baseIdx, 1);
+          const earnings = calculateTournamentEarnings(details);
+          const e = earnings.find(item => item.playerId === basePlayerId);
+          if (e) {
+            const segments: string[] = [];
+            if (e.hasCalcuttaSplit) {
+              segments.push(`${basePlayerId}-player`);
+            }
+            segments.push(`${basePlayerId}-owner`);
+            if (e.calcuttaOwner2) {
+              segments.push(`${basePlayerId}-owner2`);
+            }
+            for (const seg of segments) {
+              if (!ownerPayoutPaidIds.includes(seg)) {
+                ownerPayoutPaidIds.push(seg);
+              }
+            }
+          }
+        }
+
         const idx = ownerPayoutPaidIds.indexOf(t);
         if (forceState === 'paid') {
           if (idx === -1) ownerPayoutPaidIds.push(t);

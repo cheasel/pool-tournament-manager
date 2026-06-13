@@ -862,5 +862,39 @@ describe('Bracket Engine Tests', () => {
     }
     await db.updateHandicapRaces(defaultRaces);
   });
+
+  it('saves and retrieves owner payout paid ids with granular segment identifiers', async () => {
+    const db = getDatabaseAdapter();
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland', 'albin', 'bustamante'];
+    const tournament = await db.createTournament(
+      'Payment Segments Test',
+      '8-Ball',
+      playersRoster,
+      50,
+      [60, 40]
+    );
+
+    const initialDetails = await db.getTournamentDetails(tournament.id);
+    expect(initialDetails?.tournament.ownerPayoutPaidIds).toBeFalsy();
+
+    // Settle some segments specifically
+    const ownerPayoutPaid = ['efren-player', 'svb-owner', 'filler-owner2'];
+    const updatedDetails = await db.updateTournamentPayments(
+      tournament.id,
+      [],
+      [],
+      [],
+      ownerPayoutPaid
+    );
+
+    expect(updatedDetails.tournament.ownerPayoutPaidIds).toEqual(ownerPayoutPaid);
+
+    // Retrieve again to verify persistence
+    const reFetched = await db.getTournamentDetails(tournament.id);
+    expect(reFetched?.tournament.ownerPayoutPaidIds).toEqual(ownerPayoutPaid);
+
+    // Clean up
+    await db.deleteTournament(tournament.id);
+  });
 });
 

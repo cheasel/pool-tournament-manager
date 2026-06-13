@@ -82,9 +82,40 @@ export default function PaymentsTab({
     ? earnings.reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare + (r.owner2CalcuttaShare || 0), 0)
     : 0;
   const collectedOwnerPayout = tournament.hasCalcutta
-    ? earnings
-        .filter(r => (tournament.ownerPayoutPaidIds || []).includes(r.playerId))
-        .reduce((sum, r) => sum + r.ownerCalcuttaShare + r.playerCalcuttaShare + (r.owner2CalcuttaShare || 0), 0)
+    ? earnings.reduce((sum, r) => {
+        let portion = 0;
+        const paidIds = tournament.ownerPayoutPaidIds || [];
+        const isLegacyPaid = paidIds.includes(r.playerId);
+        
+        if (r.hasCalcuttaSplit) {
+          const playerSegmentPaid = paidIds.includes(`${r.playerId}-player`) || isLegacyPaid;
+          if (playerSegmentPaid) {
+            portion += r.playerCalcuttaShare;
+          }
+          const ownerSegmentPaid = paidIds.includes(`${r.playerId}-owner`) || isLegacyPaid;
+          if (ownerSegmentPaid) {
+            portion += r.ownerCalcuttaShare;
+          }
+          if (r.calcuttaOwner2) {
+            const owner2SegmentPaid = paidIds.includes(`${r.playerId}-owner2`) || isLegacyPaid;
+            if (owner2SegmentPaid) {
+              portion += r.owner2CalcuttaShare || 0;
+            }
+          }
+        } else {
+          const ownerSegmentPaid = paidIds.includes(`${r.playerId}-owner`) || isLegacyPaid;
+          if (ownerSegmentPaid) {
+            portion += r.ownerCalcuttaShare;
+          }
+          if (r.calcuttaOwner2) {
+            const owner2SegmentPaid = paidIds.includes(`${r.playerId}-owner2`) || isLegacyPaid;
+            if (owner2SegmentPaid) {
+              portion += r.owner2CalcuttaShare || 0;
+            }
+          }
+        }
+        return sum + portion;
+      }, 0)
     : 0;
 
   return (
@@ -441,81 +472,90 @@ export default function PaymentsTab({
                   const rows: { key: string; playerName: string; recipientName: string; type: string; amount: number; isPaid: boolean; pId: string }[] = [];
                   
                   earningsList.forEach(e => {
-                    const isPaid = (tournament.ownerPayoutPaidIds || []).includes(e.playerId);
+                    const paidIds = tournament.ownerPayoutPaidIds || [];
+                    const isLegacyPaid = paidIds.includes(e.playerId);
+
                     if (e.hasCalcuttaSplit) {
                       // Player gets 50% of Calcutta payout
+                      const pKey = `${e.playerId}-player`;
                       rows.push({
-                        key: `${e.playerId}-player`,
+                        key: pKey,
                         playerName: e.playerName,
                         recipientName: e.playerName,
                         type: 'Player (50%)',
                         amount: e.playerCalcuttaShare,
-                        isPaid,
+                        isPaid: paidIds.includes(pKey) || isLegacyPaid,
                         pId: e.playerId,
                       });
                       if (e.calcuttaOwner2) {
                         // Owner 1 gets 25%
+                        const o1Key = `${e.playerId}-owner`;
                         rows.push({
-                          key: `${e.playerId}-owner`,
+                          key: o1Key,
                           playerName: e.playerName,
                           recipientName: e.calcuttaOwner,
                           type: 'Owner 1 (25%)',
                           amount: e.ownerCalcuttaShare,
-                          isPaid,
+                          isPaid: paidIds.includes(o1Key) || isLegacyPaid,
                           pId: e.playerId,
                         });
                         // Owner 2 gets 25%
+                        const o2Key = `${e.playerId}-owner2`;
                         rows.push({
-                          key: `${e.playerId}-owner2`,
+                          key: o2Key,
                           playerName: e.playerName,
                           recipientName: e.calcuttaOwner2,
                           type: 'Owner 2 (25%)',
                           amount: e.owner2CalcuttaShare || 0,
-                          isPaid,
+                          isPaid: paidIds.includes(o2Key) || isLegacyPaid,
                           pId: e.playerId,
                         });
                       } else {
                         // Single owner gets 50%
+                        const oKey = `${e.playerId}-owner`;
                         rows.push({
-                          key: `${e.playerId}-owner`,
+                          key: oKey,
                           playerName: e.playerName,
                           recipientName: e.calcuttaOwner,
                           type: 'Owner (50%)',
                           amount: e.ownerCalcuttaShare,
-                          isPaid,
+                          isPaid: paidIds.includes(oKey) || isLegacyPaid,
                           pId: e.playerId,
                         });
                       }
                     } else {
                       if (e.calcuttaOwner2) {
                         // Owner 1 gets 50%
+                        const o1Key = `${e.playerId}-owner`;
                         rows.push({
-                          key: `${e.playerId}-owner`,
+                          key: o1Key,
                           playerName: e.playerName,
                           recipientName: e.calcuttaOwner,
                           type: 'Owner 1 (50%)',
                           amount: e.ownerCalcuttaShare,
-                          isPaid,
+                          isPaid: paidIds.includes(o1Key) || isLegacyPaid,
                           pId: e.playerId,
                         });
                         // Owner 2 gets 50%
+                        const o2Key = `${e.playerId}-owner2`;
                         rows.push({
-                          key: `${e.playerId}-owner2`,
+                          key: o2Key,
                           playerName: e.playerName,
                           recipientName: e.calcuttaOwner2,
                           type: 'Owner 2 (50%)',
                           amount: e.owner2CalcuttaShare || 0,
-                          isPaid,
+                          isPaid: paidIds.includes(o2Key) || isLegacyPaid,
                           pId: e.playerId,
                         });
                       } else {
+                        const oKey = `${e.playerId}-owner`;
                         rows.push({
-                          key: `${e.playerId}-owner`,
+                          key: oKey,
                           playerName: e.playerName,
                           recipientName: e.calcuttaOwner,
                           type: 'Owner (100%)',
                           amount: e.ownerCalcuttaShare,
-                          isPaid,
+                          isPaid: paidIds.includes(oKey) || isLegacyPaid,
                           pId: e.playerId,
                         });
                       }
@@ -533,17 +573,7 @@ export default function PaymentsTab({
                           <input
                             type="checkbox"
                             checked={row.isPaid}
-                            onChange={() => {
-                              const recipient = row.recipientName.trim().toLowerCase();
-                              const matchingPids = Array.from(
-                                new Set(
-                                  rows
-                                    .filter(r => r.recipientName.trim().toLowerCase() === recipient)
-                                    .map(r => r.pId)
-                                )
-                              );
-                              onTogglePayment('calcuttaPayout', matchingPids, row.isPaid ? 'unpaid' : 'paid');
-                            }}
+                            onChange={() => onTogglePayment('calcuttaPayout', row.key, row.isPaid ? 'unpaid' : 'paid')}
                             disabled={!canEdit}
                             className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
