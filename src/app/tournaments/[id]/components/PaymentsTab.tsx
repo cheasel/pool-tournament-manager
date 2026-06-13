@@ -533,7 +533,17 @@ export default function PaymentsTab({
                           <input
                             type="checkbox"
                             checked={row.isPaid}
-                            onChange={() => onTogglePayment('calcuttaPayout', row.pId)}
+                            onChange={() => {
+                              const recipient = row.recipientName.trim().toLowerCase();
+                              const matchingPids = Array.from(
+                                new Set(
+                                  rows
+                                    .filter(r => r.recipientName.trim().toLowerCase() === recipient)
+                                    .map(r => r.pId)
+                                )
+                              );
+                              onTogglePayment('calcuttaPayout', matchingPids, row.isPaid ? 'unpaid' : 'paid');
+                            }}
                             disabled={!canEdit}
                             className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
