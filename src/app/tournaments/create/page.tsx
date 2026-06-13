@@ -23,6 +23,8 @@ export default function CreateTournamentPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [name, setName] = useState('');
   const [gameType, setGameType] = useState<GameType>('8-Ball');
+  const [raceStyle, setRaceStyle] = useState('default');
+  const [availableStyles, setAvailableStyles] = useState<string[]>(['default', 'short', 'long']);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -88,10 +90,14 @@ export default function CreateTournamentPage() {
       try {
         const list = await db.getPlayers();
         setPlayers(list.filter(p => !p.isBye));
-        // Select all by default to make testing super fast and easy!
         setSelectedIds(list.filter(p => !p.isBye).map(p => p.id));
+        
+        // Load race styles dynamically
+        const raceSettings = await db.getHandicapRaces();
+        const styles = Array.from(new Set(raceSettings.map(r => r.raceStyle || 'default')));
+        setAvailableStyles(styles);
       } catch (err) {
-        console.error('Failed to load players:', err);
+        console.error('Failed to load players or race styles:', err);
       } finally {
         setLoading(false);
       }
@@ -179,7 +185,8 @@ export default function CreateTournamentPage() {
         calcuttaMinStartBet,
         calcuttaMinIncrement,
         hasCalcutta ? calcuttaPayoutPercentages : undefined,
-        user?.email || undefined
+        user?.email || undefined,
+        raceStyle
       );
       router.push(`/tournaments/${tournament.id}`);
     } catch (err) {
@@ -290,6 +297,24 @@ export default function CreateTournamentPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Handicap Race Style Selection */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Handicap Race Style
+              </label>
+              <select
+                value={raceStyle}
+                onChange={e => setRaceStyle(e.target.value)}
+                className="w-full rounded-lg bg-background border border-border px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors font-bold cursor-pointer"
+              >
+                {availableStyles.map(style => (
+                  <option key={style} value={style}>
+                    {style === 'default' ? 'Default / Standard' : style}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Entry Fee */}

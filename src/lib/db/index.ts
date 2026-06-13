@@ -18,7 +18,8 @@ export interface DatabaseAdapter {
     calcuttaMinStartBet?: number,
     calcuttaMinIncrement?: number,
     calcuttaPayoutPercentages?: number[],
-    creatorEmail?: string
+    creatorEmail?: string,
+    handicapRaceStyle?: string
   ): Promise<Tournament>;
   updateMatchScore(
     tournamentId: string,
@@ -89,33 +90,45 @@ const MOCK_PLAYERS_SEED: Player[] = [
   { id: 'clara_k', name: 'Clara Kelly', skillLevel8: 3, skillLevel9: 3, skillLevel10: 3, createdAt: new Date().toISOString() },
 ];
 
-export const generateDefaultRaces = (): HandicapRaceSetting[] => {
+export const generateDefaultRaces = (styles: string[] = ['default', 'short', 'long']): HandicapRaceSetting[] => {
   const races: HandicapRaceSetting[] = [];
   const gameTypes: ('8-Ball' | '9-Ball' | '10-Ball')[] = ['8-Ball', '9-Ball', '10-Ball'];
   
-  for (const gt of gameTypes) {
-    for (let higher = 3; higher <= 22; higher++) {
-      for (let lower = 3; lower <= higher; lower++) {
-        const diff = higher - lower;
-        const higherTarget = 5 + Math.ceil(diff / 2);
-        const lowerTarget = Math.max(2, 5 - Math.floor(diff / 2));
-        
-        let spots: number[] = [];
-        if (gt !== '8-Ball') {
-          if (diff === 2) spots = [8];
-          else if (diff === 3) spots = [7, 8];
-          else if (diff >= 4) spots = [6, 7, 8];
+  for (const style of styles) {
+    for (const gt of gameTypes) {
+      for (let higher = 3; higher <= 22; higher++) {
+        for (let lower = 3; lower <= higher; lower++) {
+          const diff = higher - lower;
+          
+          let higherTarget = 5 + Math.ceil(diff / 2);
+          let lowerTarget = Math.max(2, 5 - Math.floor(diff / 2));
+          
+          if (style === 'short') {
+            higherTarget = Math.max(2, 4 + Math.ceil(diff / 2) - 1);
+            lowerTarget = Math.max(1, 4 - Math.floor(diff / 2) - 1);
+          } else if (style === 'long') {
+            higherTarget = 7 + Math.ceil(diff / 2);
+            lowerTarget = Math.max(3, 7 - Math.floor(diff / 2));
+          }
+          
+          let spots: number[] = [];
+          if (gt !== '8-Ball') {
+            if (diff === 2) spots = [8];
+            else if (diff === 3) spots = [7, 8];
+            else if (diff >= 4) spots = [6, 7, 8];
+          }
+          
+          races.push({
+            gameType: gt,
+            higherSkill: higher,
+            lowerSkill: lower,
+            higherTarget,
+            lowerTarget,
+            spottedBalls: spots,
+            difference: diff,
+            raceStyle: style,
+          });
         }
-        
-        races.push({
-          gameType: gt,
-          higherSkill: higher,
-          lowerSkill: lower,
-          higherTarget,
-          lowerTarget,
-          spottedBalls: spots,
-          difference: diff,
-        });
       }
     }
   }
@@ -224,7 +237,8 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     calcuttaMinStartBet?: number,
     calcuttaMinIncrement?: number,
     calcuttaPayoutPercentages?: number[],
-    creatorEmail?: string
+    creatorEmail?: string,
+    handicapRaceStyle?: string
   ): Promise<Tournament> {
     const allPlayers = await this.getPlayers();
     const playersMap = allPlayers.reduce((acc, p) => {
@@ -248,6 +262,7 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       calcuttaMinIncrement,
       calcuttaPayoutPercentages,
       creatorEmail,
+      handicapRaceStyle: handicapRaceStyle || 'default',
     };
 
     // 1. Resolve players, pad with BYEs to reach multiple of 8
@@ -346,7 +361,7 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       groups.push(group);
 
       // Generate Double Elimination matches
-      const groupMatches = initializeGroupMatches(tournamentId, group, groupPlayersMap, gameType);
+      const groupMatches = initializeGroupMatches(tournamentId, group, groupPlayersMap, gameType, handicapRaceStyle);
       allMatches = [...allMatches, ...groupMatches];
     }
 
@@ -528,7 +543,8 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       tournamentId,
       group1,
       playersMap,
-      details.tournament.gameType
+      details.tournament.gameType,
+      details.tournament.handicapRaceStyle
     );
 
     let updatedMatches = [
@@ -542,7 +558,8 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
         tournamentId,
         group2,
         playersMap,
-        details.tournament.gameType
+        details.tournament.gameType,
+        details.tournament.handicapRaceStyle
       );
       updatedMatches = [
         ...updatedMatches.filter(m => m.groupId !== group2.id),
@@ -614,7 +631,7 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
         const p1 = playersMap[m.player1Id];
         const p2 = playersMap[m.player2Id];
         if (p1 && p2) {
-          const hc = calculateMatchHandicap(p1, p2, gameType);
+          const hc = calculateMatchHandicap(p1, p2, gameType, details.tournament.handicapRaceStyle);
           m.player1Target = hc.player1Target;
           m.player2Target = hc.player2Target;
           m.player1SpottedBalls = hc.player1SpottedBalls;
@@ -737,7 +754,7 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
 
   async getHandicapRaces(): Promise<HandicapRaceSetting[]> {
     let races = this.getStorageItem<HandicapRaceSetting[]>('ptm_handicap_races', []);
-    if (races.length === 0 || races.some(r => r.higherSkill === undefined)) {
+    if (races.length === 0 || races.some(r => r.raceStyle === undefined)) {
       races = generateDefaultRaces();
       this.setStorageItem('ptm_handicap_races', races);
     }
@@ -832,6 +849,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
       status: d.status,
       createdAt: d.created_at,
       winnerId: d.winner_id,
+      handicapRaceStyle: d.handicap_race_style || 'default',
     }));
   }
 
@@ -877,6 +895,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         calcuttaBidsPaidIds: tournamentData.calcutta_bids_paid_ids || [],
         playerPayoutPaidIds: tournamentData.player_payout_paid_ids || [],
         ownerPayoutPaidIds: tournamentData.owner_payout_paid_ids || [],
+        handicapRaceStyle: tournamentData.handicap_race_style || 'default',
       };
 
       const groups: Group[] = (groupsData || []).map((g: any) => ({
@@ -907,6 +926,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         player1Stats: m.player1_stats || {},
         player2Stats: m.player2_stats || {},
         createdAt: m.created_at,
+        handicapRaceStyle: m.handicap_race_style || 'default',
       }));
 
       const allPlayers = await this.getPlayers();
@@ -955,7 +975,8 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     calcuttaMinStartBet?: number,
     calcuttaMinIncrement?: number,
     calcuttaPayoutPercentages?: number[],
-    creatorEmail?: string
+    creatorEmail?: string,
+    handicapRaceStyle?: string
   ): Promise<Tournament> {
     try {
       // For creation, we perform bracket logic, and write records to Supabase tables:
@@ -980,6 +1001,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
           calcutta_min_increment: calcuttaMinIncrement,
           calcutta_payout_percentages: calcuttaPayoutPercentages,
           creator_email: creatorEmail,
+          handicap_race_style: handicapRaceStyle || 'default',
         })
         .select()
         .single();
@@ -1093,7 +1115,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         };
 
         // Initialize Matches
-        const groupMatches = initializeGroupMatches(tournamentId, group, groupPlayersMap, gameType);
+        const groupMatches = initializeGroupMatches(tournamentId, group, groupPlayersMap, gameType, handicapRaceStyle);
         
         // Write matches to Supabase
         const dbMatches = groupMatches.map(m => ({
@@ -1113,6 +1135,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
           player2_spotted_balls: m.player2SpottedBalls,
           status: m.status,
           winner_id: m.winnerId,
+          handicap_race_style: m.handicapRaceStyle || 'default',
         }));
 
         const { error: mErr } = await this.client.from('matches').insert(dbMatches);
@@ -1133,6 +1156,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         calcuttaPayoutPercentages: tournamentData.calcutta_payout_percentages,
         creatorEmail: tournamentData.creator_email || undefined,
         calcuttaBids: tournamentData.calcutta_bids,
+        handicapRaceStyle: tournamentData.handicap_race_style || 'default',
       };
     } catch (e) {
       console.warn('Supabase createTournament failed, falling back to LocalStorage', e);
@@ -1146,7 +1170,8 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         calcuttaMinStartBet,
         calcuttaMinIncrement,
         calcuttaPayoutPercentages,
-        creatorEmail
+        creatorEmail,
+        handicapRaceStyle
       );
     }
   }
@@ -1519,11 +1544,11 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
           const p1 = playersMap[m.player1Id];
           const p2 = playersMap[m.player2Id];
           if (p1 && p2) {
-            const hc = calculateMatchHandicap(p1, p2, gameType);
-            m.player1Target = hc.player1Target;
-            m.player2Target = hc.player2Target;
-            m.player1SpottedBalls = hc.player1SpottedBalls;
-            m.player2SpottedBalls = hc.player2SpottedBalls;
+             const hc = calculateMatchHandicap(p1, p2, gameType, details.tournament.handicapRaceStyle);
+             m.player1Target = hc.player1Target;
+             m.player2Target = hc.player2Target;
+             m.player1SpottedBalls = hc.player1SpottedBalls;
+             m.player2SpottedBalls = hc.player2SpottedBalls;
           }
         }
       });

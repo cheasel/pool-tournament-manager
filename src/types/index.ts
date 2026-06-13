@@ -40,6 +40,7 @@ export interface Tournament {
   playerPayoutPaidIds?: string[];
   ownerPayoutPaidIds?: string[];
   creatorEmail?: string;
+  handicapRaceStyle?: string;
 }
 
 export interface Group {
@@ -75,6 +76,7 @@ export interface Match {
   player1Stats?: MatchStats;
   player2Stats?: MatchStats;
   createdAt: string;
+  handicapRaceStyle?: string;
 }
 
 export interface TournamentDetails {
@@ -105,4 +107,5 @@ export interface HandicapRaceSetting {
   lowerTarget: number;
   spottedBalls: number[];
   difference?: number;
+  raceStyle?: string;
 }

@@ -14,6 +14,10 @@ export default function HandicapManagementPage() {
   
   const [activeTab, setActiveTab] = useState<GameType>('8-Ball');
   const [selectedHigherSkill, setSelectedHigherSkill] = useState<number>(9);
+  const [selectedStyle, setSelectedStyle] = useState<string>('default');
+  const [newStyleName, setNewStyleName] = useState<string>('');
+  const [isRenaming, setIsRenaming] = useState<boolean>(false);
+  const [renameValue, setRenameValue] = useState<string>('');
   const [races, setRaces] = useState<HandicapRaceSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,8 +72,13 @@ export default function HandicapManagementPage() {
     );
   }
 
-  // Filter races for the active tab (gameType)
-  const activeRaces = races.filter(r => r.gameType === activeTab);
+  // Get all unique styles present in the races data
+  const uniqueStyles = Array.from(new Set(races.map(r => r.raceStyle || 'default')));
+
+  // Filter races for the active tab (gameType) and selected style
+  const activeRaces = races.filter(
+    r => r.gameType === activeTab && (r.raceStyle || 'default') === selectedStyle
+  );
 
   // Filter displaying races for the selected Higher Player Skill Level
   const displayedRaces = activeRaces
@@ -78,7 +87,12 @@ export default function HandicapManagementPage() {
 
   const handleTargetChange = (lowerSkill: number, field: 'higherTarget' | 'lowerTarget', value: number) => {
     setRaces(prev => prev.map(r => {
-      if (r.gameType === activeTab && r.higherSkill === selectedHigherSkill && r.lowerSkill === lowerSkill) {
+      if (
+        r.gameType === activeTab &&
+        (r.raceStyle || 'default') === selectedStyle &&
+        r.higherSkill === selectedHigherSkill &&
+        r.lowerSkill === lowerSkill
+      ) {
         return { ...r, [field]: Math.max(1, value) };
       }
       return r;
@@ -87,7 +101,12 @@ export default function HandicapManagementPage() {
 
   const handleSpotToggle = (lowerSkill: number, ball: number) => {
     setRaces(prev => prev.map(r => {
-      if (r.gameType === activeTab && r.higherSkill === selectedHigherSkill && r.lowerSkill === lowerSkill) {
+      if (
+        r.gameType === activeTab &&
+        (r.raceStyle || 'default') === selectedStyle &&
+        r.higherSkill === selectedHigherSkill &&
+        r.lowerSkill === lowerSkill
+      ) {
         const spotted = r.spottedBalls || [];
         const updated = spotted.includes(ball)
           ? spotted.filter(b => b !== ball)
@@ -114,11 +133,57 @@ export default function HandicapManagementPage() {
   };
 
   const handleResetDefaults = () => {
-    if (confirm('Are you sure you want to reset all races and spots to default formula values? This will override all custom modifications across 8-Ball, 9-Ball, and 10-Ball.')) {
-      const defaults = generateDefaultRaces();
-      setRaces(defaults);
-      setSuccessMsg('Reset to default formulas. Click "Save Settings" to apply changes.');
+    if (confirm(`Are you sure you want to reset the selected race style "${selectedStyle}" to default formula values? This will override custom settings for this style.`)) {
+      const defaults = generateDefaultRaces([selectedStyle]);
+      setRaces(prev => [
+        ...prev.filter(r => (r.raceStyle || 'default') !== selectedStyle),
+        ...defaults
+      ]);
+      setSuccessMsg(`Reset "${selectedStyle}" style to default formulas. Click "Save Settings" to apply.`);
     }
+  };
+
+  const handleCreateStyle = () => {
+    const trimmed = newStyleName.trim();
+    if (!trimmed) return;
+    
+    const exists = uniqueStyles.some(s => s.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      alert('A race style with this name already exists.');
+      return;
+    }
+
+    const newStyleRaces = generateDefaultRaces([trimmed]);
+    setRaces(prev => [...prev, ...newStyleRaces]);
+    setSelectedStyle(trimmed);
+    setNewStyleName('');
+    setSuccessMsg(`Created race style "${trimmed}". Click "Save Settings" to persist.`);
+  };
+
+  const handleRenameStyle = () => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) return;
+    if (selectedStyle === 'default') {
+      alert('Cannot rename the default race style.');
+      return;
+    }
+    
+    const exists = uniqueStyles.some(s => s.toLowerCase() === trimmed.toLowerCase() && s !== selectedStyle);
+    if (exists) {
+      alert('A race style with this name already exists.');
+      return;
+    }
+
+    setRaces(prev => prev.map(r => {
+      if ((r.raceStyle || 'default') === selectedStyle) {
+        return { ...r, raceStyle: trimmed };
+      }
+      return r;
+    }));
+
+    setSelectedStyle(trimmed);
+    setIsRenaming(false);
+    setSuccessMsg(`Renamed style to "${trimmed}". Click "Save Settings" to persist.`);
   };
 
   return (
@@ -185,6 +250,94 @@ export default function HandicapManagementPage() {
             {type}
           </button>
         ))}
+      </div>
+
+      {/* Race Style Selector and Creator Card */}
+      <div className="glass-panel p-6 rounded-2xl border border-border/40 space-y-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          {/* Left side: Selector / Renaming */}
+          <div className="flex-1 space-y-2">
+            <label className="block text-xs font-black uppercase text-muted-foreground tracking-wider">
+              Selected Handicap Race Style
+            </label>
+            
+            {isRenaming ? (
+              <div className="flex items-center gap-2 max-w-md">
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  className="flex-1 bg-background border border-border/40 rounded-lg px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-primary"
+                  placeholder="Enter new style name..."
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleRenameStyle}
+                  className="rounded-lg bg-primary hover:bg-primary-hover text-background px-3 py-2 text-xs font-black cursor-pointer transition-all"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsRenaming(false)}
+                  className="rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-border/40 px-3 py-2 text-xs font-bold cursor-pointer transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedStyle}
+                  onChange={e => setSelectedStyle(e.target.value)}
+                  className="bg-slate-950 border border-border/40 rounded-lg px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-primary min-w-[200px] cursor-pointer"
+                >
+                  {uniqueStyles.map(style => (
+                    <option key={style} value={style}>
+                      {style === 'default' ? 'Default / Standard Race' : style}
+                    </option>
+                  ))}
+                </select>
+                {selectedStyle !== 'default' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRenameValue(selectedStyle);
+                      setIsRenaming(true);
+                    }}
+                    className="rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-border/40 px-3 py-2.5 text-xs font-bold cursor-pointer transition-all animate-fade-in"
+                  >
+                    Rename
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right side: Create New Style */}
+          <div className="flex-1 max-w-md space-y-2">
+            <label className="block text-xs font-black uppercase text-muted-foreground tracking-wider">
+              Create Custom Race Style
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newStyleName}
+                onChange={e => setNewStyleName(e.target.value)}
+                className="flex-1 bg-background border border-border/40 rounded-lg px-3 py-2.5 text-xs font-bold text-white focus:outline-none focus:border-primary"
+                placeholder="e.g. Short Race, Long Race..."
+              />
+              <button
+                type="button"
+                onClick={handleCreateStyle}
+                className="rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-border/40 px-4 py-2.5 text-xs font-black cursor-pointer transition-all select-none"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Selection of Higher Player Skill Level */}

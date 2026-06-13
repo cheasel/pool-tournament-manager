@@ -640,13 +640,13 @@ describe('Bracket Engine Tests', () => {
   it('saves and retrieves custom handicap races correctly and overrides race calculations by skill level combinations', async () => {
     const db = getDatabaseAdapter();
 
-    // 1. Verify default races are populated for combinations (210 combinations per game type)
+    // 1. Verify default races are populated for combinations (210 combinations per game type * 3 styles)
     const defaultRaces = await db.getHandicapRaces();
-    expect(defaultRaces.length).toBe(3 * 210);
+    expect(defaultRaces.length).toBe(3 * 210 * 3);
 
     // Check a default matchup combination: SL 9 vs SL 5 (Diff 4)
     const default9vs5 = defaultRaces.find(
-      r => r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5
+      r => r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5 && (r.raceStyle || 'default') === 'default'
     );
     // Standard diff 4 calculation: higher target = 5 + ceil(4/2) = 7, lower target = 5 - floor(4/2) = 3
     expect(default9vs5?.higherTarget).toBe(7);
@@ -655,7 +655,7 @@ describe('Bracket Engine Tests', () => {
 
     // 2. Modify two different combinations that have the SAME difference (Diff 4) but different skill levels
     const modifiedRaces = defaultRaces.map(r => {
-      if (r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5) {
+      if (r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5 && (r.raceStyle || 'default') === 'default') {
         return {
           ...r,
           higherTarget: 8,
@@ -663,7 +663,7 @@ describe('Bracket Engine Tests', () => {
           spottedBalls: [7, 8],
         };
       }
-      if (r.gameType === '9-Ball' && r.higherSkill === 12 && r.lowerSkill === 8) {
+      if (r.gameType === '9-Ball' && r.higherSkill === 12 && r.lowerSkill === 8 && (r.raceStyle || 'default') === 'default') {
         return {
           ...r,
           higherTarget: 8,
@@ -679,14 +679,14 @@ describe('Bracket Engine Tests', () => {
     // Verify both combinations updated individually
     const updatedRaces = await db.getHandicapRaces();
     const updated9vs5 = updatedRaces.find(
-      r => r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5
+      r => r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5 && (r.raceStyle || 'default') === 'default'
     );
     expect(updated9vs5?.higherTarget).toBe(8);
     expect(updated9vs5?.lowerTarget).toBe(4);
     expect(updated9vs5?.spottedBalls).toEqual([7, 8]);
 
     const updated12vs8 = updatedRaces.find(
-      r => r.gameType === '9-Ball' && r.higherSkill === 12 && r.lowerSkill === 8
+      r => r.gameType === '9-Ball' && r.higherSkill === 12 && r.lowerSkill === 8 && (r.raceStyle || 'default') === 'default'
     );
     expect(updated12vs8?.higherTarget).toBe(8);
     expect(updated12vs8?.lowerTarget).toBe(5);
@@ -698,14 +698,14 @@ describe('Bracket Engine Tests', () => {
     if (isLocalStorageAvailable) {
       localStorage.setItem('ptm_handicap_races', JSON.stringify(modifiedRaces));
     } else {
+      const store: Record<string, string> = {
+        ptm_handicap_races: JSON.stringify(modifiedRaces)
+      };
       global.window = {
         localStorage: {
-          getItem: (key: string) => {
-            if (key === 'ptm_handicap_races') return JSON.stringify(modifiedRaces);
-            return null;
-          },
-          setItem: () => {},
-          removeItem: () => {},
+          getItem: (key: string) => store[key] || null,
+          setItem: (key: string, val: string) => { store[key] = val; },
+          removeItem: (key: string) => { delete store[key]; },
         }
       } as any;
       global.localStorage = global.window.localStorage;
@@ -745,6 +745,121 @@ describe('Bracket Engine Tests', () => {
     }
 
     // Reset adapter back to defaults
+    await db.updateHandicapRaces(defaultRaces);
+  });
+
+  it('supports multiple handicap race styles and propagates them to tournaments and matches', async () => {
+    const db = getDatabaseAdapter();
+    const defaultRaces = await db.getHandicapRaces();
+
+    // 1. Modify the custom 'short' style for SL 9 vs SL 5
+    const modifiedRaces = defaultRaces.map(r => {
+      if (r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5) {
+        if (r.raceStyle === 'short') {
+          return { ...r, higherTarget: 4, lowerTarget: 2, spottedBalls: [] };
+        } else if (r.raceStyle === 'default') {
+          return { ...r, higherTarget: 8, lowerTarget: 4, spottedBalls: [7, 8] };
+        }
+      }
+      return r;
+    });
+
+    await db.updateHandicapRaces(modifiedRaces);
+
+    // Mock localStorage to simulate client-side calculation
+    const isLocalStorageAvailable = typeof window !== 'undefined' && typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function' && typeof localStorage.removeItem === 'function';
+    if (isLocalStorageAvailable) {
+      localStorage.setItem('ptm_handicap_races', JSON.stringify(modifiedRaces));
+    } else {
+      const store: Record<string, string> = {
+        ptm_handicap_races: JSON.stringify(modifiedRaces)
+      };
+      global.window = {
+        localStorage: {
+          getItem: (key: string) => store[key] || null,
+          setItem: (key: string, val: string) => { store[key] = val; },
+          removeItem: (key: string) => { delete store[key]; },
+        }
+      } as any;
+      global.localStorage = global.window.localStorage;
+    }
+
+    const p9: Player = { id: 'p9', name: 'SL9 Player', skillLevel8: 9, skillLevel9: 9, skillLevel10: 9, createdAt: '' };
+    const p5: Player = { id: 'p5', name: 'SL5 Player', skillLevel8: 5, skillLevel9: 5, skillLevel10: 5, createdAt: '' };
+
+    // Test distinct calculations for short vs default style
+    const hcShort = calculateMatchHandicap(p9, p5, '9-Ball', 'short');
+    expect(hcShort.player1Target).toBe(4);
+    expect(hcShort.player2Target).toBe(2);
+
+    const hcDefault = calculateMatchHandicap(p9, p5, '9-Ball', 'default');
+    expect(hcDefault.player1Target).toBe(8);
+    expect(hcDefault.player2Target).toBe(4);
+
+    // 2. Register players in database to seed tournament
+    const playerA = await db.createPlayer({ name: 'A', skillLevel8: 9, skillLevel9: 9, skillLevel10: 9 });
+    const playerB = await db.createPlayer({ name: 'B', skillLevel8: 5, skillLevel9: 5, skillLevel10: 5 });
+    
+    // Create remaining 6 players for group stage
+    const otherIds: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const p = await db.createPlayer({ name: `P${i}`, skillLevel8: 5, skillLevel9: 5, skillLevel10: 5 });
+      otherIds.push(p.id);
+    }
+
+    // 3. Create a tournament using 'short' style
+    const tournament = await db.createTournament(
+      'Short Style Tournament',
+      '9-Ball',
+      [playerA.id, playerB.id, ...otherIds],
+      10,
+      [70, 30],
+      false,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      'short'
+    );
+
+    expect(tournament.handicapRaceStyle).toBe('short');
+
+    // Retrieve tournament details to inspect matches
+    const details = await db.getTournamentDetails(tournament.id);
+    expect(details).not.toBeNull();
+    
+    // Find the match where playerA (SL9) plays in Round 1
+    const match = details!.matches.find(
+      m => m.roundNumber === 1 && m.roundType === 'group_winners' &&
+           (m.player1Id === playerA.id || m.player2Id === playerA.id)
+    );
+
+    expect(match).toBeDefined();
+    expect(match?.handicapRaceStyle).toBe('short');
+    
+    // Check targets: playerA is SL 9, opponent is SL 5. In short style, targets must be 4 and 2.
+    if (match?.player1Id === playerA.id) {
+      expect(match?.player1Target).toBe(4);
+      expect(match?.player2Target).toBe(2);
+    } else {
+      expect(match?.player1Target).toBe(2);
+      expect(match?.player2Target).toBe(4);
+    }
+
+    // Clean up
+    await db.deleteTournament(tournament.id);
+    await db.deletePlayer(playerA.id);
+    await db.deletePlayer(playerB.id);
+    for (const id of otherIds) {
+      await db.deletePlayer(id);
+    }
+    
+    if (isLocalStorageAvailable) {
+      localStorage.removeItem('ptm_handicap_races');
+    } else {
+      delete (global as any).window;
+      delete (global as any).localStorage;
+    }
     await db.updateHandicapRaces(defaultRaces);
   });
 });

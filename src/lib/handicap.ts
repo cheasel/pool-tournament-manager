@@ -13,7 +13,8 @@ export interface HandicapMatchSetup {
 export function calculateMatchHandicap(
   player1: Player,
   player2: Player,
-  gameType: GameType
+  gameType: GameType,
+  raceStyle?: string
 ): HandicapMatchSetup {
   // If one of the players is a BYE, return default targets
   if (player1.isBye || player2.isBye) {
@@ -57,7 +58,8 @@ export function calculateMatchHandicap(
             (r: any) =>
               r.gameType === gameType &&
               r.higherSkill === Math.max(sl1, sl2) &&
-              r.lowerSkill === Math.min(sl1, sl2)
+              r.lowerSkill === Math.min(sl1, sl2) &&
+              (r.raceStyle || 'default') === (raceStyle || 'default')
           );
           if (matched) {
             higherTarget = matched.higherTarget;

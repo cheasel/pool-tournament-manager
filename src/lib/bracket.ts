@@ -64,7 +64,8 @@ export function initializeGroupMatches(
   tournamentId: string,
   group: Group,
   playersMap: Record<string, Player>,
-  gameType: GameType
+  gameType: GameType,
+  handicapRaceStyle?: string
 ): Match[] {
   const matches: Match[] = [];
   const pIds = group.playerIds; // Exactly 8 player IDs
@@ -99,7 +100,7 @@ export function initializeGroupMatches(
     let spot2: number[] = [];
 
     if (player1 && player2) {
-      const handicap = calculateMatchHandicap(player1, player2, gameType);
+      const handicap = calculateMatchHandicap(player1, player2, gameType, handicapRaceStyle);
       target1 = handicap.player1Target;
       target2 = handicap.player2Target;
       spot1 = handicap.player1SpottedBalls;
@@ -141,6 +142,7 @@ export function initializeGroupMatches(
       player2SpottedBalls: spot2,
       status: 'scheduled',
       createdAt: now,
+      handicapRaceStyle,
     };
 
     matches.push(match);
@@ -220,6 +222,7 @@ export function advanceDoubleEliminationMatch(
   if (rule.onWin.type === 'match') {
     const destMatch = groupMatches.find(m => m.matchNumber === rule.onWin.id);
     if (destMatch) {
+      destMatch.handicapRaceStyle = completedMatch.handicapRaceStyle;
       if (rule.onWin.slot === 1) {
         destMatch.player1Id = winnerId;
       } else {
@@ -235,6 +238,7 @@ export function advanceDoubleEliminationMatch(
   if (rule.onLoss.type === 'match' && rule.onLoss.id) {
     const destMatch = groupMatches.find(m => m.matchNumber === rule.onLoss.id);
     if (destMatch) {
+      destMatch.handicapRaceStyle = completedMatch.handicapRaceStyle;
       if (rule.onLoss.slot === 1) {
         destMatch.player1Id = loserId;
       } else {
@@ -255,7 +259,7 @@ function updateMatchTargets(match: Match, playersMap: Record<string, Player>, ga
     const p1 = playersMap[match.player1Id];
     const p2 = playersMap[match.player2Id];
     if (p1 && p2) {
-      const hc = calculateMatchHandicap(p1, p2, gameType);
+      const hc = calculateMatchHandicap(p1, p2, gameType, match.handicapRaceStyle);
       match.player1Target = hc.player1Target;
       match.player2Target = hc.player2Target;
       match.player1SpottedBalls = hc.player1SpottedBalls;
@@ -308,7 +312,8 @@ export function seedSingleElimination(
   tournamentId: string,
   qualifiersList: GroupQualifiers[],
   playersMap: Record<string, Player>,
-  gameType: GameType
+  gameType: GameType,
+  handicapRaceStyle?: string
 ): Match[] {
   // 1. Collect all Winners and Losers
   const allWinners: { id: string; groupId: string }[] = [];
@@ -436,7 +441,7 @@ export function seedSingleElimination(
     let spot2: number[] = [];
 
     if (p1 && p2) {
-      const hc = calculateMatchHandicap(p1, p2, gameType);
+      const hc = calculateMatchHandicap(p1, p2, gameType, handicapRaceStyle);
       target1 = hc.player1Target;
       target2 = hc.player2Target;
       spot1 = hc.player1SpottedBalls;
@@ -459,6 +464,7 @@ export function seedSingleElimination(
       player2SpottedBalls: spot2,
       status: 'scheduled',
       createdAt: now,
+      handicapRaceStyle,
     });
   }
 
@@ -484,6 +490,7 @@ export function seedSingleElimination(
         player2SpottedBalls: [],
         status: 'scheduled',
         createdAt: now,
+        handicapRaceStyle,
       });
     }
     currentRoundMatchesCount /= 2;
@@ -524,6 +531,7 @@ export function advanceKnockoutMatches(
       );
 
       if (destMatch) {
+        destMatch.handicapRaceStyle = m.handicapRaceStyle; // Propagate style
         const currentSlotId = isPlayer1Slot ? destMatch.player1Id : destMatch.player2Id;
         if (currentSlotId !== m.winnerId) {
           if (isPlayer1Slot) {
