@@ -54,7 +54,10 @@ export function calculateMatchHandicap(
         const customRaces = JSON.parse(saved);
         if (Array.isArray(customRaces)) {
           const matched = customRaces.find(
-            (r: any) => r.gameType === gameType && r.difference === diff
+            (r: any) =>
+              r.gameType === gameType &&
+              r.higherSkill === Math.max(sl1, sl2) &&
+              r.lowerSkill === Math.min(sl1, sl2)
           );
           if (matched) {
             higherTarget = matched.higherTarget;

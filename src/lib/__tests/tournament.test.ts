@@ -637,27 +637,38 @@ describe('Bracket Engine Tests', () => {
     }
   });
 
-  it('saves and retrieves custom handicap races correctly and overrides race calculations', async () => {
+  it('saves and retrieves custom handicap races correctly and overrides race calculations by skill level combinations', async () => {
     const db = getDatabaseAdapter();
 
-    // 1. Verify default races are populated
+    // 1. Verify default races are populated for combinations (210 combinations per game type)
     const defaultRaces = await db.getHandicapRaces();
-    expect(defaultRaces.length).toBe(3 * 20); // 3 game types * 20 difference rows (0 to 19)
+    expect(defaultRaces.length).toBe(3 * 210);
 
-    // Check a default row
-    const defaultDiff2 = defaultRaces.find(r => r.gameType === '9-Ball' && r.difference === 2);
-    expect(defaultDiff2?.higherTarget).toBe(6);
-    expect(defaultDiff2?.lowerTarget).toBe(4);
-    expect(defaultDiff2?.spottedBalls).toEqual([8]);
+    // Check a default matchup combination: SL 9 vs SL 5 (Diff 4)
+    const default9vs5 = defaultRaces.find(
+      r => r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5
+    );
+    // Standard diff 4 calculation: higher target = 5 + ceil(4/2) = 7, lower target = 5 - floor(4/2) = 3
+    expect(default9vs5?.higherTarget).toBe(7);
+    expect(default9vs5?.lowerTarget).toBe(3);
+    expect(default9vs5?.spottedBalls).toEqual([6, 7, 8]);
 
-    // 2. Modify a row and update it
+    // 2. Modify two different combinations that have the SAME difference (Diff 4) but different skill levels
     const modifiedRaces = defaultRaces.map(r => {
-      if (r.gameType === '9-Ball' && r.difference === 2) {
+      if (r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5) {
         return {
           ...r,
           higherTarget: 8,
-          lowerTarget: 3,
+          lowerTarget: 4,
           spottedBalls: [7, 8],
+        };
+      }
+      if (r.gameType === '9-Ball' && r.higherSkill === 12 && r.lowerSkill === 8) {
+        return {
+          ...r,
+          higherTarget: 8,
+          lowerTarget: 5,
+          spottedBalls: [6, 7, 8],
         };
       }
       return r;
@@ -665,14 +676,23 @@ describe('Bracket Engine Tests', () => {
 
     await db.updateHandicapRaces(modifiedRaces);
 
-    // Verify it updated in database Adapter
+    // Verify both combinations updated individually
     const updatedRaces = await db.getHandicapRaces();
-    const updatedDiff2 = updatedRaces.find(r => r.gameType === '9-Ball' && r.difference === 2);
-    expect(updatedDiff2?.higherTarget).toBe(8);
-    expect(updatedDiff2?.lowerTarget).toBe(3);
-    expect(updatedDiff2?.spottedBalls).toEqual([7, 8]);
+    const updated9vs5 = updatedRaces.find(
+      r => r.gameType === '9-Ball' && r.higherSkill === 9 && r.lowerSkill === 5
+    );
+    expect(updated9vs5?.higherTarget).toBe(8);
+    expect(updated9vs5?.lowerTarget).toBe(4);
+    expect(updated9vs5?.spottedBalls).toEqual([7, 8]);
 
-    // 3. Test that calculateMatchHandicap respects the custom database override
+    const updated12vs8 = updatedRaces.find(
+      r => r.gameType === '9-Ball' && r.higherSkill === 12 && r.lowerSkill === 8
+    );
+    expect(updated12vs8?.higherTarget).toBe(8);
+    expect(updated12vs8?.lowerTarget).toBe(5);
+    expect(updated12vs8?.spottedBalls).toEqual([6, 7, 8]);
+
+    // 3. Test that calculateMatchHandicap respects the custom combinations correctly
     const isLocalStorageAvailable = typeof window !== 'undefined' && typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function' && typeof localStorage.removeItem === 'function';
 
     if (isLocalStorageAvailable) {
@@ -691,28 +711,30 @@ describe('Bracket Engine Tests', () => {
       global.localStorage = global.window.localStorage;
     }
 
-    const p7: Player = {
-      id: 'p7',
-      name: 'Player 7',
-      skillLevel8: 7,
-      skillLevel9: 7,
-      skillLevel10: 7,
-      createdAt: '',
-    };
-    const p5: Player = {
-      id: 'p5',
-      name: 'Player 5',
-      skillLevel8: 5,
-      skillLevel9: 5,
-      skillLevel10: 5,
-      createdAt: '',
-    };
+    const p12: Player = { id: 'p12', name: 'SL12 Player', skillLevel8: 12, skillLevel9: 12, skillLevel10: 12, createdAt: '' };
+    const p9: Player = { id: 'p9', name: 'SL9 Player', skillLevel8: 9, skillLevel9: 9, skillLevel10: 9, createdAt: '' };
+    const p8: Player = { id: 'p8', name: 'SL8 Player', skillLevel8: 8, skillLevel9: 8, skillLevel10: 8, createdAt: '' };
+    const p5: Player = { id: 'p5', name: 'SL5 Player', skillLevel8: 5, skillLevel9: 5, skillLevel10: 5, createdAt: '' };
+    const p10: Player = { id: 'p10', name: 'SL10 Player', skillLevel8: 10, skillLevel9: 10, skillLevel10: 10, createdAt: '' };
+    const p6: Player = { id: 'p6', name: 'SL6 Player', skillLevel8: 6, skillLevel9: 6, skillLevel10: 6, createdAt: '' };
 
-    // Calculate match handicap for 9-Ball (diff is 2)
-    const handicap = calculateMatchHandicap(p7, p5, '9-Ball');
-    expect(handicap.player1Target).toBe(8);
-    expect(handicap.player2Target).toBe(3);
-    expect(handicap.player2SpottedBalls).toEqual([7, 8]);
+    // Matchup 1: SL 9 vs SL 5 (Modified to 8 vs 4, spot 7/8)
+    const hc9vs5 = calculateMatchHandicap(p9, p5, '9-Ball');
+    expect(hc9vs5.player1Target).toBe(8);
+    expect(hc9vs5.player2Target).toBe(4);
+    expect(hc9vs5.player2SpottedBalls).toEqual([7, 8]);
+
+    // Matchup 2: SL 12 vs SL 8 (Modified to 8 vs 5, spot 6/7/8)
+    const hc12vs8 = calculateMatchHandicap(p12, p8, '9-Ball');
+    expect(hc12vs8.player1Target).toBe(8);
+    expect(hc12vs8.player2Target).toBe(5);
+    expect(hc12vs8.player2SpottedBalls).toEqual([6, 7, 8]);
+
+    // Matchup 3: SL 10 vs SL 6 (Unmodified Diff 4, should fall back to standard formula: 7 vs 3)
+    const hc10vs6 = calculateMatchHandicap(p10, p6, '9-Ball');
+    expect(hc10vs6.player1Target).toBe(7);
+    expect(hc10vs6.player2Target).toBe(3);
+    expect(hc10vs6.player2SpottedBalls).toEqual([6, 7, 8]);
 
     // Cleanup global mock
     if (isLocalStorageAvailable) {

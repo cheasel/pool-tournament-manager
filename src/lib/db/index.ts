@@ -89,32 +89,34 @@ const MOCK_PLAYERS_SEED: Player[] = [
   { id: 'clara_k', name: 'Clara Kelly', skillLevel8: 3, skillLevel9: 3, skillLevel10: 3, createdAt: new Date().toISOString() },
 ];
 
-// ----------------------------------------------------
-// Default Handicap Race Settings Generator
-// ----------------------------------------------------
 export const generateDefaultRaces = (): HandicapRaceSetting[] => {
   const races: HandicapRaceSetting[] = [];
   const gameTypes: ('8-Ball' | '9-Ball' | '10-Ball')[] = ['8-Ball', '9-Ball', '10-Ball'];
   
   for (const gt of gameTypes) {
-    for (let diff = 0; diff <= 19; diff++) {
-      const higherTarget = 5 + Math.ceil(diff / 2);
-      const lowerTarget = Math.max(2, 5 - Math.floor(diff / 2));
-      
-      let spots: number[] = [];
-      if (gt !== '8-Ball') {
-        if (diff === 2) spots = [8];
-        else if (diff === 3) spots = [7, 8];
-        else if (diff >= 4) spots = [6, 7, 8];
+    for (let higher = 3; higher <= 22; higher++) {
+      for (let lower = 3; lower <= higher; lower++) {
+        const diff = higher - lower;
+        const higherTarget = 5 + Math.ceil(diff / 2);
+        const lowerTarget = Math.max(2, 5 - Math.floor(diff / 2));
+        
+        let spots: number[] = [];
+        if (gt !== '8-Ball') {
+          if (diff === 2) spots = [8];
+          else if (diff === 3) spots = [7, 8];
+          else if (diff >= 4) spots = [6, 7, 8];
+        }
+        
+        races.push({
+          gameType: gt,
+          higherSkill: higher,
+          lowerSkill: lower,
+          higherTarget,
+          lowerTarget,
+          spottedBalls: spots,
+          difference: diff,
+        });
       }
-      
-      races.push({
-        gameType: gt,
-        difference: diff,
-        higherTarget,
-        lowerTarget,
-        spottedBalls: spots,
-      });
     }
   }
   return races;
@@ -735,7 +737,7 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
 
   async getHandicapRaces(): Promise<HandicapRaceSetting[]> {
     let races = this.getStorageItem<HandicapRaceSetting[]>('ptm_handicap_races', []);
-    if (races.length === 0) {
+    if (races.length === 0 || races.some(r => r.higherSkill === undefined)) {
       races = generateDefaultRaces();
       this.setStorageItem('ptm_handicap_races', races);
     }
@@ -1718,20 +1720,26 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     try {
       const { data, error } = await this.client
         .from('handicap_races')
-        .select('*')
-        .order('difference', { ascending: true });
+        .select('*');
 
       if (error) throw error;
       if (!data || data.length === 0) {
         return localStorageAdapter.getHandicapRaces();
       }
 
+      if (data.some((d: any) => d.higher_skill === undefined)) {
+        console.warn('Supabase handicap_races has legacy schema. Falling back to default races.');
+        return localStorageAdapter.getHandicapRaces();
+      }
+
       return data.map((d: any) => ({
         gameType: d.game_type,
-        difference: d.difference,
+        higherSkill: d.higher_skill,
+        lowerSkill: d.lower_skill,
         higherTarget: d.higher_target,
         lowerTarget: d.lower_target,
         spottedBalls: d.spotted_balls || [],
+        difference: d.difference,
       }));
     } catch (e) {
       console.warn('Supabase getHandicapRaces failed, falling back to LocalStorage', e);
@@ -1743,13 +1751,15 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     try {
       const rows = races.map(r => ({
         game_type: r.gameType,
-        difference: r.difference,
+        higher_skill: r.higherSkill,
+        lower_skill: r.lowerSkill,
         higher_target: r.higherTarget,
         lower_target: r.lowerTarget,
         spotted_balls: r.spottedBalls,
+        difference: r.higherSkill - r.lowerSkill,
       }));
 
-      const { error } = await this.client.from('handicap_races').upsert(rows, { onConflict: 'game_type,difference' });
+      const { error } = await this.client.from('handicap_races').upsert(rows, { onConflict: 'game_type,higher_skill,lower_skill' });
       if (error) throw error;
 
       await localStorageAdapter.updateHandicapRaces(races);

@@ -13,6 +13,7 @@ export default function HandicapManagementPage() {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   
   const [activeTab, setActiveTab] = useState<GameType>('8-Ball');
+  const [selectedHigherSkill, setSelectedHigherSkill] = useState<number>(9);
   const [races, setRaces] = useState<HandicapRaceSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,21 +68,26 @@ export default function HandicapManagementPage() {
     );
   }
 
-  // Filter races for the active tab
+  // Filter races for the active tab (gameType)
   const activeRaces = races.filter(r => r.gameType === activeTab);
 
-  const handleTargetChange = (difference: number, field: 'higherTarget' | 'lowerTarget', value: number) => {
+  // Filter displaying races for the selected Higher Player Skill Level
+  const displayedRaces = activeRaces
+    .filter(r => r.higherSkill === selectedHigherSkill)
+    .sort((a, b) => b.lowerSkill - a.lowerSkill);
+
+  const handleTargetChange = (lowerSkill: number, field: 'higherTarget' | 'lowerTarget', value: number) => {
     setRaces(prev => prev.map(r => {
-      if (r.gameType === activeTab && r.difference === difference) {
+      if (r.gameType === activeTab && r.higherSkill === selectedHigherSkill && r.lowerSkill === lowerSkill) {
         return { ...r, [field]: Math.max(1, value) };
       }
       return r;
     }));
   };
 
-  const handleSpotToggle = (difference: number, ball: number) => {
+  const handleSpotToggle = (lowerSkill: number, ball: number) => {
     setRaces(prev => prev.map(r => {
-      if (r.gameType === activeTab && r.difference === difference) {
+      if (r.gameType === activeTab && r.higherSkill === selectedHigherSkill && r.lowerSkill === lowerSkill) {
         const spotted = r.spottedBalls || [];
         const updated = spotted.includes(ball)
           ? spotted.filter(b => b !== ball)
@@ -130,7 +136,7 @@ export default function HandicapManagementPage() {
             Configure <span className="text-primary">Handicap Races</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Customize target race racks and ball spotting values based on skill level differences.
+            Customize target race racks and ball spotting values based on skill level combinations.
           </p>
         </div>
 
@@ -181,29 +187,67 @@ export default function HandicapManagementPage() {
         ))}
       </div>
 
+      {/* Selection of Higher Player Skill Level */}
+      <div className="glass-panel p-5 rounded-2xl border border-border/40 space-y-3">
+        <label className="block text-xs font-black uppercase text-muted-foreground tracking-wider">
+          Higher Player Skill Level (SL)
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 20 }, (_, i) => 22 - i).map(sl => {
+            const isSelected = selectedHigherSkill === sl;
+            return (
+              <button
+                key={sl}
+                type="button"
+                onClick={() => setSelectedHigherSkill(sl)}
+                className={`h-9 min-w-[44px] px-2 rounded-lg text-xs font-black transition-all border cursor-pointer ${
+                  isSelected
+                    ? 'bg-primary text-background border-primary shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                    : 'bg-slate-950 text-muted-foreground border-border/40 hover:text-white hover:border-muted'
+                }`}
+              >
+                {sl}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Select a higher player's skill level above. The table below will show the handicap races against all possible lower player skill levels.
+        </p>
+      </div>
+
       {/* Settings Lookup/Edit Table */}
       <div className="glass-panel rounded-2xl shadow-xl overflow-hidden border border-border/40">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-900/60 border-b border-border/40 text-[10px] font-black uppercase text-muted-foreground tracking-wider">
-                <th className="py-3 px-6 text-center w-[15%]">SL Difference</th>
-                <th className="py-3 px-6 text-center w-[25%]">Higher Player Race</th>
-                <th className="py-3 px-6 text-center w-[25%]">Lower Player Race</th>
-                <th className="py-3 px-6 text-center w-[35%]">Lower Player Spots (9/10-Ball)</th>
+                <th className="py-3 px-6 text-center w-[20%]">Matchup</th>
+                <th className="py-3 px-6 text-center w-[15%]">Difference</th>
+                <th className="py-3 px-6 text-center w-[20%]">Higher Player Race</th>
+                <th className="py-3 px-6 text-center w-[20%]">Lower Player Race</th>
+                <th className="py-3 px-6 text-center w-[25%]">Lower Player Spots (9/10-Ball)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/10 font-bold text-xs text-slate-200">
-              {activeRaces.map(row => {
+              {displayedRaces.map(row => {
                 const isSpottingApplicable = activeTab !== '8-Ball';
                 const spots = row.spottedBalls || [];
+                const diff = row.higherSkill - row.lowerSkill;
 
                 return (
-                  <tr key={row.difference} className="hover:bg-slate-800/10 transition-colors">
+                  <tr key={row.lowerSkill} className="hover:bg-slate-800/10 transition-colors">
+                    {/* Matchup */}
+                    <td className="py-4 px-6 text-center">
+                      <span className="inline-flex items-center justify-center min-w-16 px-2.5 py-1 rounded bg-slate-900 border border-border/50 text-slate-300 font-extrabold text-[11px]">
+                        SL {row.higherSkill} vs SL {row.lowerSkill}
+                      </span>
+                    </td>
+
                     {/* Difference Label */}
                     <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center justify-center min-w-10 px-2.5 py-1 rounded bg-slate-900 border border-border/50 text-slate-300 font-extrabold text-[11px]">
-                        Diff {row.difference}
+                      <span className="text-[11px] text-muted-foreground font-black">
+                        Diff {diff}
                       </span>
                     </td>
 
@@ -212,7 +256,7 @@ export default function HandicapManagementPage() {
                       <div className="flex items-center justify-center gap-2 max-w-[120px] mx-auto">
                         <button
                           type="button"
-                          onClick={() => handleTargetChange(row.difference, 'higherTarget', row.higherTarget - 1)}
+                          onClick={() => handleTargetChange(row.lowerSkill, 'higherTarget', row.higherTarget - 1)}
                           className="h-8 w-8 rounded bg-slate-950 border border-border/40 hover:bg-slate-900 flex items-center justify-center text-white text-xs font-black cursor-pointer select-none"
                         >
                           -
@@ -221,12 +265,12 @@ export default function HandicapManagementPage() {
                           type="number"
                           min="1"
                           value={row.higherTarget}
-                          onChange={e => handleTargetChange(row.difference, 'higherTarget', parseInt(e.target.value) || 1)}
+                          onChange={e => handleTargetChange(row.lowerSkill, 'higherTarget', parseInt(e.target.value) || 1)}
                           className="w-12 bg-background border border-border/40 rounded py-1 text-center font-black text-white focus:outline-none focus:border-primary"
                         />
                         <button
                           type="button"
-                          onClick={() => handleTargetChange(row.difference, 'higherTarget', row.higherTarget + 1)}
+                          onClick={() => handleTargetChange(row.lowerSkill, 'higherTarget', row.higherTarget + 1)}
                           className="h-8 w-8 rounded bg-slate-950 border border-border/40 hover:bg-slate-900 flex items-center justify-center text-white text-xs font-black cursor-pointer select-none"
                         >
                           +
@@ -239,7 +283,7 @@ export default function HandicapManagementPage() {
                       <div className="flex items-center justify-center gap-2 max-w-[120px] mx-auto">
                         <button
                           type="button"
-                          onClick={() => handleTargetChange(row.difference, 'lowerTarget', row.lowerTarget - 1)}
+                          onClick={() => handleTargetChange(row.lowerSkill, 'lowerTarget', row.lowerTarget - 1)}
                           className="h-8 w-8 rounded bg-slate-950 border border-border/40 hover:bg-slate-900 flex items-center justify-center text-white text-xs font-black cursor-pointer select-none"
                         >
                           -
@@ -248,12 +292,12 @@ export default function HandicapManagementPage() {
                           type="number"
                           min="1"
                           value={row.lowerTarget}
-                          onChange={e => handleTargetChange(row.difference, 'lowerTarget', parseInt(e.target.value) || 1)}
+                          onChange={e => handleTargetChange(row.lowerSkill, 'lowerTarget', parseInt(e.target.value) || 1)}
                           className="w-12 bg-background border border-border/40 rounded py-1 text-center font-black text-white focus:outline-none focus:border-primary"
                         />
                         <button
                           type="button"
-                          onClick={() => handleTargetChange(row.difference, 'lowerTarget', row.lowerTarget + 1)}
+                          onClick={() => handleTargetChange(row.lowerSkill, 'lowerTarget', row.lowerTarget + 1)}
                           className="h-8 w-8 rounded bg-slate-950 border border-border/40 hover:bg-slate-900 flex items-center justify-center text-white text-xs font-black cursor-pointer select-none"
                         >
                           +
@@ -271,7 +315,7 @@ export default function HandicapManagementPage() {
                               <button
                                 key={ball}
                                 type="button"
-                                onClick={() => handleSpotToggle(row.difference, ball)}
+                                onClick={() => handleSpotToggle(row.lowerSkill, ball)}
                                 className={`h-8 px-3 rounded text-[10px] font-black transition-all border cursor-pointer flex items-center gap-1 ${
                                   isSpotted
                                     ? 'bg-accent text-background border-accent shadow-[0_0_8px_rgba(251,191,36,0.3)]'

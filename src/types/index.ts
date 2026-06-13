@@ -99,8 +99,10 @@ export interface HandicapHistoryEntry {
 
 export interface HandicapRaceSetting {
   gameType: GameType;
-  difference: number;
+  higherSkill: number;
+  lowerSkill: number;
   higherTarget: number;
   lowerTarget: number;
   spottedBalls: number[];
+  difference?: number;
 }
