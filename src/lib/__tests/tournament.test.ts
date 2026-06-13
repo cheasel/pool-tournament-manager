@@ -636,5 +636,94 @@ describe('Bracket Engine Tests', () => {
       await db.deletePlayer(p.id);
     }
   });
+
+  it('saves and retrieves custom handicap races correctly and overrides race calculations', async () => {
+    const db = getDatabaseAdapter();
+
+    // 1. Verify default races are populated
+    const defaultRaces = await db.getHandicapRaces();
+    expect(defaultRaces.length).toBe(3 * 20); // 3 game types * 20 difference rows (0 to 19)
+
+    // Check a default row
+    const defaultDiff2 = defaultRaces.find(r => r.gameType === '9-Ball' && r.difference === 2);
+    expect(defaultDiff2?.higherTarget).toBe(6);
+    expect(defaultDiff2?.lowerTarget).toBe(4);
+    expect(defaultDiff2?.spottedBalls).toEqual([8]);
+
+    // 2. Modify a row and update it
+    const modifiedRaces = defaultRaces.map(r => {
+      if (r.gameType === '9-Ball' && r.difference === 2) {
+        return {
+          ...r,
+          higherTarget: 8,
+          lowerTarget: 3,
+          spottedBalls: [7, 8],
+        };
+      }
+      return r;
+    });
+
+    await db.updateHandicapRaces(modifiedRaces);
+
+    // Verify it updated in database Adapter
+    const updatedRaces = await db.getHandicapRaces();
+    const updatedDiff2 = updatedRaces.find(r => r.gameType === '9-Ball' && r.difference === 2);
+    expect(updatedDiff2?.higherTarget).toBe(8);
+    expect(updatedDiff2?.lowerTarget).toBe(3);
+    expect(updatedDiff2?.spottedBalls).toEqual([7, 8]);
+
+    // 3. Test that calculateMatchHandicap respects the custom database override
+    const isLocalStorageAvailable = typeof window !== 'undefined' && typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function' && typeof localStorage.removeItem === 'function';
+
+    if (isLocalStorageAvailable) {
+      localStorage.setItem('ptm_handicap_races', JSON.stringify(modifiedRaces));
+    } else {
+      global.window = {
+        localStorage: {
+          getItem: (key: string) => {
+            if (key === 'ptm_handicap_races') return JSON.stringify(modifiedRaces);
+            return null;
+          },
+          setItem: () => {},
+          removeItem: () => {},
+        }
+      } as any;
+      global.localStorage = global.window.localStorage;
+    }
+
+    const p7: Player = {
+      id: 'p7',
+      name: 'Player 7',
+      skillLevel8: 7,
+      skillLevel9: 7,
+      skillLevel10: 7,
+      createdAt: '',
+    };
+    const p5: Player = {
+      id: 'p5',
+      name: 'Player 5',
+      skillLevel8: 5,
+      skillLevel9: 5,
+      skillLevel10: 5,
+      createdAt: '',
+    };
+
+    // Calculate match handicap for 9-Ball (diff is 2)
+    const handicap = calculateMatchHandicap(p7, p5, '9-Ball');
+    expect(handicap.player1Target).toBe(8);
+    expect(handicap.player2Target).toBe(3);
+    expect(handicap.player2SpottedBalls).toEqual([7, 8]);
+
+    // Cleanup global mock
+    if (isLocalStorageAvailable) {
+      localStorage.removeItem('ptm_handicap_races');
+    } else {
+      delete (global as any).window;
+      delete (global as any).localStorage;
+    }
+
+    // Reset adapter back to defaults
+    await db.updateHandicapRaces(defaultRaces);
+  });
 });
 

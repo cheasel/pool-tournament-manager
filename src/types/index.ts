@@ -97,3 +97,10 @@ export interface HandicapHistoryEntry {
   changedBy?: string;
 }
 
+export interface HandicapRaceSetting {
+  gameType: GameType;
+  difference: number;
+  higherTarget: number;
+  lowerTarget: number;
+  spottedBalls: number[];
+}

@@ -31,33 +31,51 @@ export function calculateMatchHandicap(
   const diff = Math.abs(sl1 - sl2);
   const p1IsHigher = sl1 >= sl2;
 
-  const higherTarget = 5 + Math.ceil(diff / 2);
-  const lowerTarget = Math.max(2, 5 - Math.floor(diff / 2));
+  let higherTarget = 5 + Math.ceil(diff / 2);
+  let lowerTarget = Math.max(2, 5 - Math.floor(diff / 2));
 
   // Ball spotting rules (9-Ball and 10-Ball only)
+  let spots: number[] = [];
+  if (gameType !== '8-Ball') {
+    if (diff === 2) {
+      spots = [8];
+    } else if (diff === 3) {
+      spots = [7, 8];
+    } else if (diff >= 4) {
+      spots = [6, 7, 8];
+    }
+  }
+
+  // Load custom races if configured in localStorage
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('ptm_handicap_races');
+    if (saved) {
+      try {
+        const customRaces = JSON.parse(saved);
+        if (Array.isArray(customRaces)) {
+          const matched = customRaces.find(
+            (r: any) => r.gameType === gameType && r.difference === diff
+          );
+          if (matched) {
+            higherTarget = matched.higherTarget;
+            lowerTarget = matched.lowerTarget;
+            spots = gameType !== '8-Ball' ? (matched.spottedBalls || []) : [];
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse custom handicap races from localStorage', e);
+      }
+    }
+  }
+
   let p1SpottedBalls: number[] = [];
   let p2SpottedBalls: number[] = [];
 
-  if (gameType !== '8-Ball') {
-    // The lower-rated player gets the spot.
-    if (diff === 2) {
-      if (p1IsHigher) {
-        p2SpottedBalls = [8];
-      } else {
-        p1SpottedBalls = [8];
-      }
-    } else if (diff === 3) {
-      if (p1IsHigher) {
-        p2SpottedBalls = [7, 8];
-      } else {
-        p1SpottedBalls = [7, 8];
-      }
-    } else if (diff >= 4) {
-      if (p1IsHigher) {
-        p2SpottedBalls = [6, 7, 8];
-      } else {
-        p1SpottedBalls = [6, 7, 8];
-      }
+  if (spots.length > 0) {
+    if (p1IsHigher) {
+      p2SpottedBalls = spots;
+    } else {
+      p1SpottedBalls = spots;
     }
   }
 

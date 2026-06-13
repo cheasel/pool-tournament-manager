@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Player, Tournament, Group, Match, MatchStats, TournamentDetails, CalcuttaBid, HandicapHistoryEntry } from '../../types';
+import { Player, Tournament, Group, Match, MatchStats, TournamentDetails, CalcuttaBid, HandicapHistoryEntry, HandicapRaceSetting } from '../../types';
 import { initializeGroupMatches, getGroupQualifiers, seedSingleElimination, advanceDoubleEliminationMatch, advanceKnockoutMatches, resolveByeMatches } from '../bracket';
 import { calculateMatchHandicap } from '../handicap';
 
@@ -57,6 +57,8 @@ export interface DatabaseAdapter {
     changedBy?: string
   ): Promise<Player>;
   getHandicapHistory(playerId?: string): Promise<HandicapHistoryEntry[]>;
+  getHandicapRaces(): Promise<HandicapRaceSetting[]>;
+  updateHandicapRaces(races: HandicapRaceSetting[]): Promise<HandicapRaceSetting[]>;
 }
 
 // ----------------------------------------------------
@@ -86,6 +88,37 @@ const MOCK_PLAYERS_SEED: Player[] = [
   { id: 'bob_n', name: 'Bob Novice', skillLevel8: 3, skillLevel9: 3, skillLevel10: 3, createdAt: new Date().toISOString() },
   { id: 'clara_k', name: 'Clara Kelly', skillLevel8: 3, skillLevel9: 3, skillLevel10: 3, createdAt: new Date().toISOString() },
 ];
+
+// ----------------------------------------------------
+// Default Handicap Race Settings Generator
+// ----------------------------------------------------
+export const generateDefaultRaces = (): HandicapRaceSetting[] => {
+  const races: HandicapRaceSetting[] = [];
+  const gameTypes: ('8-Ball' | '9-Ball' | '10-Ball')[] = ['8-Ball', '9-Ball', '10-Ball'];
+  
+  for (const gt of gameTypes) {
+    for (let diff = 0; diff <= 19; diff++) {
+      const higherTarget = 5 + Math.ceil(diff / 2);
+      const lowerTarget = Math.max(2, 5 - Math.floor(diff / 2));
+      
+      let spots: number[] = [];
+      if (gt !== '8-Ball') {
+        if (diff === 2) spots = [8];
+        else if (diff === 3) spots = [7, 8];
+        else if (diff >= 4) spots = [6, 7, 8];
+      }
+      
+      races.push({
+        gameType: gt,
+        difference: diff,
+        higherTarget,
+        lowerTarget,
+        spottedBalls: spots,
+      });
+    }
+  }
+  return races;
+};
 
 // ----------------------------------------------------
 // LocalStorage Adapter
@@ -698,6 +731,20 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       return history.filter(h => h.playerId === playerId);
     }
     return history;
+  }
+
+  async getHandicapRaces(): Promise<HandicapRaceSetting[]> {
+    let races = this.getStorageItem<HandicapRaceSetting[]>('ptm_handicap_races', []);
+    if (races.length === 0) {
+      races = generateDefaultRaces();
+      this.setStorageItem('ptm_handicap_races', races);
+    }
+    return races;
+  }
+
+  async updateHandicapRaces(races: HandicapRaceSetting[]): Promise<HandicapRaceSetting[]> {
+    this.setStorageItem('ptm_handicap_races', races);
+    return races;
   }
 }
 
@@ -1664,6 +1711,52 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase getHandicapHistory failed, falling back to LocalStorage', e);
       return localStorageAdapter.getHandicapHistory(playerId);
+    }
+  }
+
+  async getHandicapRaces(): Promise<HandicapRaceSetting[]> {
+    try {
+      const { data, error } = await this.client
+        .from('handicap_races')
+        .select('*')
+        .order('difference', { ascending: true });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        return localStorageAdapter.getHandicapRaces();
+      }
+
+      return data.map((d: any) => ({
+        gameType: d.game_type,
+        difference: d.difference,
+        higherTarget: d.higher_target,
+        lowerTarget: d.lower_target,
+        spottedBalls: d.spotted_balls || [],
+      }));
+    } catch (e) {
+      console.warn('Supabase getHandicapRaces failed, falling back to LocalStorage', e);
+      return localStorageAdapter.getHandicapRaces();
+    }
+  }
+
+  async updateHandicapRaces(races: HandicapRaceSetting[]): Promise<HandicapRaceSetting[]> {
+    try {
+      const rows = races.map(r => ({
+        game_type: r.gameType,
+        difference: r.difference,
+        higher_target: r.higherTarget,
+        lower_target: r.lowerTarget,
+        spotted_balls: r.spottedBalls,
+      }));
+
+      const { error } = await this.client.from('handicap_races').upsert(rows, { onConflict: 'game_type,difference' });
+      if (error) throw error;
+
+      await localStorageAdapter.updateHandicapRaces(races);
+      return races;
+    } catch (e) {
+      console.warn('Supabase updateHandicapRaces failed, falling back to LocalStorage', e);
+      return localStorageAdapter.updateHandicapRaces(races);
     }
   }
 }
