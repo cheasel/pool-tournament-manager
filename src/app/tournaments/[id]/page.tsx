@@ -749,7 +749,12 @@ export default function TournamentDetailPage() {
                   : 'bg-slate-100 text-slate-900'
             }`}
           >
-            {p1.isBye ? 'BYE' : p1.name || 'TBD'}
+            <span className="truncate">{p1.isBye ? 'BYE' : p1.name || 'TBD'}</span>
+            {!p1.isBye && match.player1Id && (
+              <span className="text-[9px] font-bold text-slate-500 shrink-0 ml-1">
+                SL{tournament.gameType === '8-Ball' ? p1.skillLevel8 : tournament.gameType === '9-Ball' ? p1.skillLevel9 : p1.skillLevel10}
+              </span>
+            )}
           </span>
           {/* Score (Blue-green) */}
           <span className="w-7 h-5 inline-flex items-center justify-center font-black bg-teal-600 text-white rounded text-[10px] ml-1 shrink-0">
@@ -791,13 +796,35 @@ export default function TournamentDetailPage() {
                   : 'bg-slate-100 text-slate-900'
             }`}
           >
-            {p2.isBye ? 'BYE' : p2.name || 'TBD'}
+            <span className="truncate">{p2.isBye ? 'BYE' : p2.name || 'TBD'}</span>
+            {!p2.isBye && match.player2Id && (
+              <span className="text-[9px] font-bold text-slate-500 shrink-0 ml-1">
+                SL{tournament.gameType === '8-Ball' ? p2.skillLevel8 : tournament.gameType === '9-Ball' ? p2.skillLevel9 : p2.skillLevel10}
+              </span>
+            )}
           </span>
           {/* Score (Blue-green) */}
           <span className="w-7 h-5 inline-flex items-center justify-center font-black bg-teal-600 text-white rounded text-[10px] ml-1 shrink-0">
             {isCompleted ? match.player2Score : '-'}
           </span>
         </div>
+
+        {/* Spotted balls info */}
+        {((match.player1SpottedBalls && match.player1SpottedBalls.length > 0) || 
+          (match.player2SpottedBalls && match.player2SpottedBalls.length > 0)) && (
+          <div className="text-[9px] font-bold text-accent/90 bg-slate-950/40 px-1.5 py-0.5 rounded border border-accent/10 flex flex-col gap-0.5 mt-0.5 shrink-0">
+            {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
+              <span className="truncate">
+                {p1.name} gets Spot: {match.player1SpottedBalls.join(', ')}
+              </span>
+            )}
+            {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
+              <span className="truncate">
+                {p2.name} gets Spot: {match.player2SpottedBalls.join(', ')}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     );
   };
