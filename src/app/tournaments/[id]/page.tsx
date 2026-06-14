@@ -502,6 +502,12 @@ export default function TournamentDetailPage() {
     })).filter(x => !x.player.isBye);
   };
 
+  const qualifiedPlayerIds = React.useMemo(() => {
+    if (!activeGroup) return new Set<string>();
+    const standings = getGroupStandings(activeGroup);
+    return new Set(standings.filter(s => s.status === 'Qualified').map(s => s.player.id));
+  }, [activeGroup, matches]);
+
   const knockoutMatches = matches.filter(m => m.roundType === 'knockout');
   const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(m => m.roundNumber)) : 0;
 
@@ -748,6 +754,9 @@ export default function TournamentDetailPage() {
       return `${groupLetter}${idx + 1}`;
     };
 
+    const isP1Qualified = qualifiedPlayerIds.has(match.player1Id);
+    const isP2Qualified = qualifiedPlayerIds.has(match.player2Id);
+
     return (
       <div
         onClick={() => isClickable && openScoring(match)}
@@ -804,7 +813,7 @@ export default function TournamentDetailPage() {
                 </span>
               )}
             </span>
-            {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
+            {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && !isP1Qualified && (
               <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm animate-fade-in">
                 <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
                 <div className="flex gap-1">
@@ -862,7 +871,7 @@ export default function TournamentDetailPage() {
                 </span>
               )}
             </span>
-            {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
+            {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && !isP2Qualified && (
               <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm animate-fade-in">
                 <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
                 <div className="flex gap-1">
