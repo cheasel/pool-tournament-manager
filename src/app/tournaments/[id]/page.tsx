@@ -48,6 +48,51 @@ export default function TournamentDetailPage() {
   const [swapSourcePlayer, setSwapSourcePlayer] = useState<{ playerId: string; name: string } | null>(null);
   const [swapKnockoutSourcePlayer, setSwapKnockoutSourcePlayer] = useState<{ playerId: string; name: string } | null>(null);
 
+  const qualifiedPlayerIds = React.useMemo(() => {
+    if (!details || !activeGroupId) return new Set<string>();
+    const activeGroup = details.groups.find(g => g.id === activeGroupId);
+    if (!activeGroup) return new Set<string>();
+
+    const groupMatches = details.matches.filter(m => m.groupId === activeGroup.id);
+    const results: Record<string, { wins: number; losses: number; status: 'Qualified' | 'Active' | 'Eliminated' }> = {};
+    
+    activeGroup.playerIds.forEach(pid => {
+      results[pid] = { wins: 0, losses: 0, status: 'Active' };
+    });
+
+    groupMatches.forEach(m => {
+      if (m.status !== 'completed' || !m.winnerId) return;
+      const loserId = m.player1Id === m.winnerId ? m.player2Id : m.player1Id;
+
+      if (results[m.winnerId]) results[m.winnerId].wins++;
+      if (results[loserId]) results[loserId].losses++;
+    });
+
+    const m5 = groupMatches.find(m => m.matchNumber === 5);
+    const m6 = groupMatches.find(m => m.matchNumber === 6);
+    if (m5?.status === 'completed' && m5.winnerId && results[m5.winnerId]) {
+      results[m5.winnerId].status = 'Qualified';
+    }
+    if (m6?.status === 'completed' && m6.winnerId && results[m6.winnerId]) {
+      results[m6.winnerId].status = 'Qualified';
+    }
+
+    const m9 = groupMatches.find(m => m.matchNumber === 9);
+    const m10 = groupMatches.find(m => m.matchNumber === 10);
+    if (m9?.status === 'completed' && m9.winnerId && results[m9.winnerId]) {
+      results[m9.winnerId].status = 'Qualified';
+    }
+    if (m10?.status === 'completed' && m10.winnerId && results[m10.winnerId]) {
+      results[m10.winnerId].status = 'Qualified';
+    }
+
+    return new Set(
+      Object.entries(results)
+        .filter(([_, stats]) => stats.status === 'Qualified')
+        .map(([id]) => id)
+    );
+  }, [details, activeGroupId]);
+
   const handleTogglePayment = async (
     category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout',
     targetId: string | string[],
@@ -502,11 +547,6 @@ export default function TournamentDetailPage() {
     })).filter(x => !x.player.isBye);
   };
 
-  const qualifiedPlayerIds = React.useMemo(() => {
-    if (!activeGroup) return new Set<string>();
-    const standings = getGroupStandings(activeGroup);
-    return new Set(standings.filter(s => s.status === 'Qualified').map(s => s.player.id));
-  }, [activeGroup, matches]);
 
   const knockoutMatches = matches.filter(m => m.roundType === 'knockout');
   const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(m => m.roundNumber)) : 0;
