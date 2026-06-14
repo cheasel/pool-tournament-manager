@@ -531,7 +531,7 @@ export default function TournamentDetailPage() {
       <span
         key={num}
         style={style}
-        className="h-4.5 w-4.5 rounded-full inline-flex items-center justify-center text-[8px] font-black shadow-sm shrink-0 select-none"
+        className="h-4.5 w-4.5 rounded-full inline-flex items-center justify-center text-[8px] font-black shadow-sm shrink-0 select-none border border-slate-950/20"
       >
         <span className={textColor}>{num}</span>
       </span>
@@ -607,8 +607,11 @@ export default function TournamentDetailPage() {
                 )}
               </div>
               {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
-                <div className="flex gap-1 mt-1">
-                  {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+                <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm">
+                  <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                  <div className="flex gap-1">
+                    {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+                  </div>
                 </div>
               )}
             </div>
@@ -662,8 +665,11 @@ export default function TournamentDetailPage() {
                 )}
               </div>
               {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
-                <div className="flex gap-1 mt-1">
-                  {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+                <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm">
+                  <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                  <div className="flex gap-1">
+                    {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+                  </div>
                 </div>
               )}
             </div>
@@ -799,8 +805,11 @@ export default function TournamentDetailPage() {
               )}
             </span>
             {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
-              <div className="flex flex-wrap gap-1 px-0.5">
-                {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+              <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm animate-fade-in">
+                <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                <div className="flex gap-1">
+                  {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+                </div>
               </div>
             )}
           </div>
@@ -854,8 +863,11 @@ export default function TournamentDetailPage() {
               )}
             </span>
             {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
-              <div className="flex flex-wrap gap-1 px-0.5">
-                {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+              <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm animate-fade-in">
+                <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                <div className="flex gap-1">
+                  {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+                </div>
               </div>
             )}
           </div>
