@@ -1853,9 +1853,6 @@ export default function TournamentDetailPage() {
                               : '',
                             'A1 Qualifier'
                           )}
-                          <span className="h-5 w-5 inline-flex items-center justify-center font-extrabold text-[10px] rounded-full bg-slate-900 text-primary border border-primary/20 shadow-sm">
-                            8
-                          </span>
                         </div>
                         <div className="flex flex-col items-center gap-1.5">
                           <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Winner A2</span>
@@ -1865,9 +1862,6 @@ export default function TournamentDetailPage() {
                               : '',
                             'A2 Qualifier'
                           )}
-                          <span className="h-5 w-5 inline-flex items-center justify-center font-extrabold text-[10px] rounded-full bg-slate-900 text-primary border border-primary/20 shadow-sm">
-                            8
-                          </span>
                         </div>
                       </div>
 
