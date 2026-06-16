@@ -26,17 +26,8 @@ export default function EarningsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [nameToIdMap, setNameToIdMap] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'combined' | 'player' | 'owner'>('combined');
-  const [stats, setStats] = useState<{
-    players: PlayerGlobalEarnings[];
-    owners: OwnerGlobalEarnings[];
-    combined: CombinedGlobalEarnings[];
-  }>({ players: [], owners: [], combined: [] });
-
-  const [summary, setSummary] = useState({
-    totalPrizePools: 0,
-    topPlayer: { name: 'N/A', amount: 0 },
-    topOwner: { name: 'N/A', amount: 0 },
-  });
+  const [tournamentsDetails, setTournamentsDetails] = useState<TournamentDetails[]>([]);
+  const [gameTypeFilter, setGameTypeFilter] = useState<'all' | '8-Ball' | '9-Ball' | '10-Ball'>('all');
 
   const db = getDatabaseAdapter();
 
@@ -59,39 +50,7 @@ export default function EarningsPage() {
             detailsList.push(details);
           }
         }
-
-        // Aggregate
-        const aggregated = aggregateGlobalEarnings(detailsList);
-        setStats(aggregated);
-
-        // Compute summary numbers
-        // Total prize pools = Sum of all entry fees and Calcutta bids
-        let totalPrizePools = 0;
-        detailsList.forEach(d => {
-          if (d.tournament.status === 'completed') {
-            const numRealPlayers = d.players.filter(p => !p.isBye).length;
-            const entryPool = (d.tournament.entryFee || 0) * numRealPlayers;
-            const calcuttaPool = (d.tournament.calcuttaBids || []).reduce(
-              (sum, b) => sum + b.bidAmount,
-              0
-            );
-            totalPrizePools += entryPool + calcuttaPool;
-          }
-        });
-
-        const topPlayer = aggregated.players.length > 0
-          ? { name: aggregated.players[0].playerName, amount: aggregated.players[0].totalEarnings }
-          : { name: 'N/A', amount: 0 };
-
-        const topOwner = aggregated.owners.length > 0
-          ? { name: aggregated.owners[0].ownerName, amount: aggregated.owners[0].ownerCalcuttaShare }
-          : { name: 'N/A', amount: 0 };
-
-        setSummary({
-          totalPrizePools,
-          topPlayer,
-          topOwner,
-        });
+        setTournamentsDetails(detailsList);
       } catch (err) {
         console.error('Failed to load earnings stats:', err);
       } finally {
@@ -101,6 +60,55 @@ export default function EarningsPage() {
 
     loadEarningsData();
   }, []);
+
+  // Filter tournamentsDetails by game type, only when activeTab is player and format is selected
+  const filteredDetails = React.useMemo(() => {
+    if (activeTab !== 'player' || gameTypeFilter === 'all') {
+      return tournamentsDetails;
+    }
+    return tournamentsDetails.filter(d => d.tournament.gameType === gameTypeFilter);
+  }, [tournamentsDetails, activeTab, gameTypeFilter]);
+
+  // Aggregate stats dynamically based on active filters
+  const stats = React.useMemo(() => {
+    return aggregateGlobalEarnings(filteredDetails);
+  }, [filteredDetails]);
+
+  // Dynamic summary statistics
+  const summary = React.useMemo(() => {
+    let totalPrizePools = 0;
+    filteredDetails.forEach(d => {
+      if (d.tournament.status === 'completed') {
+        const numRealPlayers = d.players.filter(p => !p.isBye).length;
+        const entryPool = (d.tournament.entryFee || 0) * numRealPlayers;
+        const calcuttaPool = (d.tournament.calcuttaBids || []).reduce(
+          (sum, b) => sum + b.bidAmount,
+          0
+        );
+        totalPrizePools += entryPool + calcuttaPool;
+      }
+    });
+
+    const topPlayer = stats.players.length > 0
+      ? { name: stats.players[0].playerName, amount: stats.players[0].totalEarnings }
+      : { name: 'N/A', amount: 0 };
+
+    const topOwner = stats.owners.length > 0
+      ? { name: stats.owners[0].ownerName, amount: stats.owners[0].ownerCalcuttaShare }
+      : { name: 'N/A', amount: 0 };
+
+    return {
+      totalPrizePools,
+      topPlayer,
+      topOwner,
+    };
+  }, [filteredDetails, stats]);
+
+  // Helper to handle tab switching and reset game type filter
+  const handleTabChange = (tab: 'combined' | 'player' | 'owner') => {
+    setActiveTab(tab);
+    setGameTypeFilter('all');
+  };
 
   // Filtering based on search query
   const filteredCombined = stats.combined.filter(c =>
@@ -192,22 +200,43 @@ export default function EarningsPage() {
 
           {/* Filters & Tabs Row */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            {/* Search filter */}
-            <div className="flex items-center rounded-xl bg-card border border-border px-4 py-2.5 shadow-md focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all md:w-80">
-              <Search className="h-4 w-4 text-muted-foreground mr-3" />
-              <input
-                type="text"
-                placeholder="Filter by name..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="bg-transparent text-sm text-white focus:outline-none w-full"
-              />
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full md:w-auto">
+              {/* Search filter */}
+              <div className="flex items-center rounded-xl bg-card border border-border px-4 py-2.5 shadow-md focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all w-full sm:w-80">
+                <Search className="h-4 w-4 text-muted-foreground mr-3" />
+                <input
+                  type="text"
+                  placeholder="Filter by name..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="bg-transparent text-sm text-white focus:outline-none w-full"
+                />
+              </div>
+
+              {/* Game Type Selector Tabs (Only when activeTab === 'player') */}
+              {activeTab === 'player' && (
+                <div className="flex bg-slate-900/60 p-1 rounded-xl border border-border/40 text-[11px] sm:text-xs font-bold gap-1 self-start sm:self-auto animate-fade-in">
+                  {(['all', '8-Ball', '9-Ball', '10-Ball'] as const).map(gt => (
+                    <button
+                      key={gt}
+                      onClick={() => setGameTypeFilter(gt)}
+                      className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        gameTypeFilter === gt
+                          ? 'bg-primary text-background shadow-md'
+                          : 'text-muted-foreground hover:text-white'
+                      }`}
+                    >
+                      {gt === 'all' ? 'All Formats' : gt}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tab switchers */}
             <div className="flex bg-slate-900/60 p-1 rounded-xl border border-border/40 self-start md:self-auto">
               <button
-                onClick={() => setActiveTab('combined')}
+                onClick={() => handleTabChange('combined')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === 'combined'
                     ? 'bg-primary text-background shadow-md'
@@ -217,7 +246,7 @@ export default function EarningsPage() {
                 All Earnings
               </button>
               <button
-                onClick={() => setActiveTab('player')}
+                onClick={() => handleTabChange('player')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === 'player'
                     ? 'bg-primary text-background shadow-md'
@@ -227,7 +256,7 @@ export default function EarningsPage() {
                 Players
               </button>
               <button
-                onClick={() => setActiveTab('owner')}
+                onClick={() => handleTabChange('owner')}
                 className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === 'owner'
                     ? 'bg-primary text-background shadow-md'
