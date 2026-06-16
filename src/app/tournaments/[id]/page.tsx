@@ -379,7 +379,7 @@ export default function TournamentDetailPage() {
     return acc;
   }, {} as Record<string, Player>);
 
-  const hasStarted = matches.some(m => m.status === 'completed' && !playersMap[m.winnerId || '']?.isBye);
+  const hasStarted = matches.some(m => m.status === 'completed' && !playersMap[m.player1Id]?.isBye && !playersMap[m.player2Id]?.isBye);
   const canSwap = isSuperAdmin && isCreator && !hasStarted;
   const canSwapKnockout = isSuperAdmin && isCreator && tournament.status === 'active';
 
