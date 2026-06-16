@@ -896,5 +896,84 @@ describe('Bracket Engine Tests', () => {
     // Clean up
     await db.deleteTournament(tournament.id);
   });
+
+  it('cascades player handicap update to incomplete matches in active tournaments', async () => {
+    const db = getDatabaseAdapter();
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland', 'albin', 'bustamante'];
+    
+    // Create a tournament
+    const tournament = await db.createTournament(
+      'Handicap Cascade Test',
+      '9-Ball',
+      playersRoster,
+      10,
+      [100]
+    );
+
+    // Start tournament to make status 'active' and generate group matches
+    const details = await db.startTournament(tournament.id, []);
+    expect(details.tournament.status).toBe('active');
+
+    // Find a match with efren (e.g. Efren Reyes vs Shane Van Boening)
+    const match = details.matches.find(m => m.player1Id === 'efren' || m.player2Id === 'efren');
+    expect(match).toBeDefined();
+    expect(match?.status).toBe('scheduled');
+    
+    const initialTarget1 = match?.player1Target;
+    const initialTarget2 = match?.player2Target;
+
+    // Fetch efren's original details
+    const efren = details.players.find(p => p.id === 'efren');
+    expect(efren).toBeDefined();
+
+    if (efren && match) {
+      // Modify efren's 9-ball skill level drastically (e.g. from 22 to 3)
+      const updatedEfren = await db.updatePlayer('efren', {
+        name: efren.name,
+        skillLevel8: efren.skillLevel8,
+        skillLevel9: 3, // drop to lowest skill level
+        skillLevel10: efren.skillLevel10,
+      });
+
+      expect(updatedEfren.skillLevel9).toBe(3);
+
+      // Fetch tournament details again to check updated matches
+      const updatedDetails = await db.getTournamentDetails(tournament.id);
+      const updatedMatch = updatedDetails?.matches.find(m => m.id === match.id);
+      expect(updatedMatch).toBeDefined();
+      
+      // Since efren's handicap went down drastically, the targets should have recalculated and changed
+      expect(updatedMatch?.player1Target).not.toBe(initialTarget1);
+      expect(updatedMatch?.player2Target).not.toBe(initialTarget2);
+    }
+
+    // Clean up
+    await db.deleteTournament(tournament.id);
+    // Reset efren's skill level back to original 22
+    if (efren) {
+      await db.updatePlayer('efren', {
+        name: efren.name,
+        skillLevel8: efren.skillLevel8,
+        skillLevel9: 22,
+        skillLevel10: efren.skillLevel10,
+      });
+    }
+  });
+
+  it('correctly sets custom handicapRaceStyle when seeding single elimination knockout matches', () => {
+    const playersMap: Record<string, Player> = {
+      p1: { id: 'p1', name: 'Player 1', skillLevel8: 10, skillLevel9: 10, skillLevel10: 10, createdAt: '' },
+      p2: { id: 'p2', name: 'Player 2', skillLevel8: 10, skillLevel9: 10, skillLevel10: 10, createdAt: '' },
+    };
+    const qualifiersList = [
+      { groupId: 'g1', winners: ['p1'], losers: ['p2'] }
+    ];
+
+    const matches = seedSingleElimination('test_tourney', qualifiersList, playersMap, '9-Ball', 'short');
+    expect(matches.length).toBeGreaterThan(0);
+    matches.forEach(m => {
+      expect(m.handicapRaceStyle).toBe('short');
+    });
+  });
 });
 

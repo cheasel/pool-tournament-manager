@@ -430,7 +430,8 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
           tournamentId,
           qualifiersList,
           playersMap,
-          details.tournament.gameType
+          details.tournament.gameType,
+          details.tournament.handicapRaceStyle
         );
         details.matches = [...details.matches, ...knockoutMatches];
       }
@@ -713,6 +714,14 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       oldPlayer.skillLevel9 !== player.skillLevel9 ||
       oldPlayer.skillLevel10 !== player.skillLevel10;
 
+    const updated = {
+      ...oldPlayer,
+      name: player.name,
+      skillLevel8: player.skillLevel8,
+      skillLevel9: player.skillLevel9,
+      skillLevel10: player.skillLevel10,
+    };
+
     if (skillChanged) {
       const historyEntry: HandicapHistoryEntry = {
         id: Math.random().toString(36).substring(2, 11),
@@ -729,15 +738,45 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       const history = this.getStorageItem<HandicapHistoryEntry[]>('ptm_handicap_history', []);
       history.push(historyEntry);
       this.setStorageItem('ptm_handicap_history', history);
-    }
 
-    const updated = {
-      ...oldPlayer,
-      name: player.name,
-      skillLevel8: player.skillLevel8,
-      skillLevel9: player.skillLevel9,
-      skillLevel10: player.skillLevel10,
-    };
+      // Cascade changes to active tournaments
+      const tournaments = this.getStorageItem<Tournament[]>('ptm_tournaments', []);
+      const activeTournaments = tournaments.filter(t => t.status === 'active');
+      if (activeTournaments.length > 0) {
+        const activeTourIds = new Set(activeTournaments.map(t => t.id));
+        const currentMatches = this.getStorageItem<Match[]>('ptm_matches', []);
+        const playersMap = currentPlayers.reduce((acc, p) => {
+          acc[p.id] = p;
+          return acc;
+        }, {} as Record<string, Player>);
+        playersMap[id] = updated;
+
+        let matchesUpdated = false;
+        currentMatches.forEach(m => {
+          if (activeTourIds.has(m.tournamentId) && m.status !== 'completed') {
+            if (m.player1Id === id || m.player2Id === id) {
+              const p1 = playersMap[m.player1Id];
+              const p2 = playersMap[m.player2Id];
+              if (p1 && p2) {
+                const t = activeTournaments.find(tour => tour.id === m.tournamentId);
+                if (t) {
+                  const hc = calculateMatchHandicap(p1, p2, t.gameType, m.handicapRaceStyle || 'default');
+                  m.player1Target = hc.player1Target;
+                  m.player2Target = hc.player2Target;
+                  m.player1SpottedBalls = hc.player1SpottedBalls;
+                  m.player2SpottedBalls = hc.player2SpottedBalls;
+                  matchesUpdated = true;
+                }
+              }
+            }
+          }
+        });
+
+        if (matchesUpdated) {
+          this.setStorageItem('ptm_matches', currentMatches);
+        }
+      }
+    }
 
     currentPlayers[idx] = updated;
     this.setStorageItem('ptm_players', currentPlayers);
@@ -1232,7 +1271,8 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
             tournamentId,
             qualifiersList,
             playersMap,
-            details.tournament.gameType
+            details.tournament.gameType,
+            details.tournament.handicapRaceStyle
           );
           
           // These are brand-new matches we must insert into DB later
@@ -1694,6 +1734,88 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         .select()
         .single();
       if (error) throw error;
+
+      if (skillChanged) {
+        // Cascade changes to active tournaments
+        const { data: activeTournaments, error: tErr } = await this.client
+          .from('tournaments')
+          .select('id, game_type')
+          .eq('status', 'active');
+        
+        if (!tErr && activeTournaments && activeTournaments.length > 0) {
+          const activeTourIds = activeTournaments.map(t => t.id);
+          
+          // Find all active/scheduled matches containing the player in these tournaments
+          const { data: matchesData, error: mErr } = await this.client
+            .from('matches')
+            .select('*')
+            .in('tournament_id', activeTourIds)
+            .neq('status', 'completed')
+            .or(`player1_id.eq.${id},player2_id.eq.${id}`);
+
+          if (!mErr && matchesData && matchesData.length > 0) {
+            const playerIds = new Set<string>();
+            matchesData.forEach(m => {
+              if (m.player1_id) playerIds.add(m.player1_id);
+              if (m.player2_id) playerIds.add(m.player2_id);
+            });
+
+            const { data: playersData, error: pErr } = await this.client
+              .from('players')
+              .select('*')
+              .in('id', Array.from(playerIds));
+
+            if (!pErr && playersData) {
+              const playersMap: Record<string, Player> = {};
+              playersData.forEach((p: any) => {
+                playersMap[p.id] = {
+                  id: p.id,
+                  name: p.name,
+                  skillLevel8: p.skill_level_8,
+                  skillLevel9: p.skill_level_9,
+                  skillLevel10: p.skill_level_10,
+                  createdAt: p.created_at,
+                };
+              });
+
+              // Add BYEs
+              playerIds.forEach(pid => {
+                if ((pid.includes('BYE') || pid === 'BYE') && !playersMap[pid]) {
+                  playersMap[pid] = {
+                    id: pid,
+                    name: 'BYE',
+                    skillLevel8: 3,
+                    skillLevel9: 3,
+                    skillLevel10: 3,
+                    createdAt: new Date().toISOString(),
+                    isBye: true,
+                  };
+                }
+              });
+
+              for (const m of matchesData) {
+                const p1 = playersMap[m.player1_id];
+                const p2 = playersMap[m.player2_id];
+                if (p1 && p2) {
+                  const t = activeTournaments.find(tour => tour.id === m.tournament_id);
+                  if (t) {
+                    const hc = calculateMatchHandicap(p1, p2, t.game_type, m.handicap_race_style || 'default');
+                    await this.client
+                      .from('matches')
+                      .update({
+                        player1_target: hc.player1Target,
+                        player2_target: hc.player2Target,
+                        player1_spotted_balls: hc.player1SpottedBalls,
+                        player2_spotted_balls: hc.player2SpottedBalls,
+                      })
+                      .eq('id', m.id);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
       return {
         id: data.id,
