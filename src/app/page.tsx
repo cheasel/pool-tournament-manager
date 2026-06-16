@@ -8,7 +8,15 @@ import { Trophy, Calendar, Play, Circle, Award, PlusCircle, Users, Activity, Tra
 import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, accounts } = useAuth();
+
+  // Find creator username by email
+  const getCreatorUsername = (email?: string) => {
+    if (!email) return 'System Pre-Seed';
+    const account = accounts.find(a => a.email.toLowerCase() === email.toLowerCase());
+    return account ? account.username : email;
+  };
+
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,7 +248,7 @@ export default function DashboardPage() {
                           {new Date(tourney.createdAt).toLocaleDateString()}
                         </td>
                         <td className="py-4 px-6 text-slate-400 font-mono text-[11px]">
-                          {tourney.creatorEmail || 'System Pre-Seed'}
+                          {getCreatorUsername(tourney.creatorEmail)}
                         </td>
                         <td className="py-4 px-6 text-center">
                           {canDelete ? (
