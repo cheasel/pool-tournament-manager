@@ -614,9 +614,30 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
       throw new Error('One or both players not found in Round 1 knockout matches');
     }
 
-    if (match1.status === 'completed' || match2.status === 'completed') {
+    const playersMap = details.players.reduce((acc, p) => {
+      acc[p.id] = p;
+      return acc;
+    }, {} as Record<string, Player>);
+
+    const isCompletedRealMatch = (m: Match) => {
+      if (m.status !== 'completed') return false;
+      const p1 = playersMap[m.player1Id];
+      const p2 = playersMap[m.player2Id];
+      const isBye = (p1?.isBye) || (p2?.isBye) || (m.player1Id?.includes('BYE')) || (m.player2Id?.includes('BYE'));
+      return !isBye;
+    };
+
+    if (isCompletedRealMatch(match1) || isCompletedRealMatch(match2)) {
       throw new Error('Cannot swap players in completed matches');
     }
+
+    // Reset status, scores, and winner IDs of the swapped matches to default scheduled state
+    [match1, match2].forEach(m => {
+      m.status = 'scheduled';
+      m.winnerId = undefined;
+      m.player1Score = 0;
+      m.player2Score = 0;
+    });
 
     // Swap the player IDs
     if (match1.player1Id === player1Id) {
@@ -630,11 +651,6 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     } else {
       match2.player2Id = player1Id;
     }
-
-    const playersMap = details.players.reduce((acc, p) => {
-      acc[p.id] = p;
-      return acc;
-    }, {} as Record<string, Player>);
 
     // Recalculate match targets and spotted balls
     const gameType = details.tournament.gameType;
@@ -1613,9 +1629,30 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         throw new Error('One or both players not found in Round 1 knockout matches in Supabase');
       }
 
-      if (match1.status === 'completed' || match2.status === 'completed') {
+      const playersMap = details.players.reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {} as Record<string, Player>);
+
+      const isCompletedRealMatch = (m: Match) => {
+        if (m.status !== 'completed') return false;
+        const p1 = playersMap[m.player1Id];
+        const p2 = playersMap[m.player2Id];
+        const isBye = (p1?.isBye) || (p2?.isBye) || (m.player1Id?.includes('BYE')) || (m.player2Id?.includes('BYE'));
+        return !isBye;
+      };
+
+      if (isCompletedRealMatch(match1) || isCompletedRealMatch(match2)) {
         throw new Error('Cannot swap players in completed matches');
       }
+
+      // Reset status, scores, and winner IDs of the swapped matches to default scheduled state in memory
+      [match1, match2].forEach(m => {
+        m.status = 'scheduled';
+        m.winnerId = undefined;
+        m.player1Score = 0;
+        m.player2Score = 0;
+      });
 
       // Swap the player IDs in memory
       if (match1.player1Id === player1Id) {
@@ -1629,11 +1666,6 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
       } else {
         match2.player2Id = player1Id;
       }
-
-      const playersMap = details.players.reduce((acc, p) => {
-        acc[p.id] = p;
-        return acc;
-      }, {} as Record<string, Player>);
 
       // Recalculate targets and spotted balls in memory
       const gameType = details.tournament.gameType;

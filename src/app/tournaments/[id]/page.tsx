@@ -595,8 +595,9 @@ export default function TournamentDetailPage() {
 
     const isClickable = canEdit && match.player1Id && match.player2Id && !p1.isBye && !p2.isBye;
 
-    const canSwapP1 = canSwapKnockout && match.roundType === 'knockout' && match.roundNumber === 1 && !isCompleted && match.player1Id;
-    const canSwapP2 = canSwapKnockout && match.roundType === 'knockout' && match.roundNumber === 1 && !isCompleted && match.player2Id;
+    const isByeMatch = p1.isBye || p2.isBye;
+    const canSwapP1 = canSwapKnockout && match.roundType === 'knockout' && match.roundNumber === 1 && (!isCompleted || isByeMatch) && match.player1Id;
+    const canSwapP2 = canSwapKnockout && match.roundType === 'knockout' && match.roundNumber === 1 && (!isCompleted || isByeMatch) && match.player2Id;
 
     const isP1Selected = swapKnockoutSourcePlayer?.playerId === match.player1Id;
     const isP2Selected = swapKnockoutSourcePlayer?.playerId === match.player2Id;

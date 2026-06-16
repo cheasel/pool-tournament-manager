@@ -1058,5 +1058,103 @@ describe('Bracket Engine Tests', () => {
       delete (global as any).localStorage;
     }
   });
+
+  it('supports swapping a player with a BYE player in Round 1 of knockout stage and correctly resets/auto-resolves matches', async () => {
+    const db = getDatabaseAdapter();
+
+    // 1. Create a set of 9 players to ensure 3 groups are created, producing 9 real qualifiers (not a power of 2)
+    const playersRoster: string[] = [];
+    for (let i = 1; i <= 9; i++) {
+      const p = await db.createPlayer({
+        name: `Real Player ${i}`,
+        skillLevel8: 10,
+        skillLevel9: 10,
+        skillLevel10: 10,
+      });
+      playersRoster.push(p.id);
+    }
+
+    // 2. Create the tournament. Seeding 9 players will pad to 24 (3 groups of 8).
+    const tournament = await db.createTournament(
+      'Knockout BYE Swap Test',
+      '9-Ball',
+      playersRoster,
+      10,
+      [100]
+    );
+
+    // 3. Start tournament (status -> active) and generate group matches
+    let details = await db.startTournament(tournament.id, []);
+    expect(details.tournament.status).toBe('active');
+
+    // 4. Force complete all group matches to trigger knockout bracket generation
+    const groupMatches = details.matches.filter(m => m.roundType === 'group_winners' || m.roundType === 'group_losers');
+    for (const m of groupMatches) {
+      if (m.status !== 'completed') {
+        details = await db.updateMatchScore(
+          tournament.id,
+          m.id,
+          m.player1Target,
+          0,
+          { breakAndRun: false, tableRun: false },
+          { breakAndRun: false, tableRun: false }
+        );
+      }
+    }
+
+    // After completing group stage, knockout matches must exist
+    let knockoutMatches = details.matches.filter(m => m.roundType === 'knockout');
+    expect(knockoutMatches.length).toBeGreaterThan(0);
+
+    // Round 1 knockout matches: find one with a BYE and one with a real matchup or another BYE
+    const byeMatch = knockoutMatches.find(m => m.roundNumber === 1 && (m.player1Id.includes('BYE') || m.player2Id.includes('BYE')));
+    expect(byeMatch).toBeDefined();
+    expect(byeMatch?.status).toBe('completed'); // Bye matches auto-complete
+
+    // Find the players in byeMatch: one real player and one BYE player
+    const realPlayerId = byeMatch?.player1Id.includes('BYE') ? byeMatch?.player2Id : byeMatch?.player1Id;
+    const byePlayerId = byeMatch?.player1Id.includes('BYE') ? byeMatch?.player1Id : byeMatch?.player2Id;
+    expect(realPlayerId).toBeDefined();
+    expect(byePlayerId).toBeDefined();
+
+    // Find a Round 1 match containing two real players to swap with
+    const otherMatch = knockoutMatches.find(m => m.roundNumber === 1 && !m.player1Id.includes('BYE') && !m.player2Id.includes('BYE'));
+    expect(otherMatch).toBeDefined();
+    
+    const otherPlayerId = otherMatch?.player1Id;
+    expect(otherPlayerId).toBeDefined();
+
+    // 5. Swap the real player from the other match with the BYE player in the BYE match
+    const updatedDetails = await db.swapKnockoutPlayers(
+      tournament.id,
+      otherPlayerId!,
+      byePlayerId!
+    );
+
+    // 6. Verify swap result
+    const updatedKnockout = updatedDetails.matches.filter(m => m.roundType === 'knockout');
+    const updatedByeMatch = updatedKnockout.find(m => m.id === byeMatch?.id);
+    const updatedOtherMatch = updatedKnockout.find(m => m.id === otherMatch?.id);
+
+    // The match that previously had a BYE and was completed should now contain two real players
+    // and its status should be reset to scheduled with score 0
+    expect(updatedByeMatch?.player1Id === otherPlayerId || updatedByeMatch?.player2Id === otherPlayerId).toBe(true);
+    expect(updatedByeMatch?.status).toBe('scheduled');
+    expect(updatedByeMatch?.winnerId).toBeUndefined();
+    expect(updatedByeMatch?.player1Score).toBe(0);
+    expect(updatedByeMatch?.player2Score).toBe(0);
+
+    // The match that now contains the BYE player should auto-complete
+    expect(updatedOtherMatch?.player1Id === byePlayerId || updatedOtherMatch?.player2Id === byePlayerId).toBe(true);
+    expect(updatedOtherMatch?.status).toBe('completed');
+    expect(updatedOtherMatch?.winnerId).toBeDefined();
+    expect(updatedOtherMatch?.winnerId).not.toContain('BYE');
+
+    // Clean up
+    await db.deleteTournament(tournament.id);
+    for (const pid of playersRoster) {
+      await db.deletePlayer(pid);
+    }
+  });
 });
 
