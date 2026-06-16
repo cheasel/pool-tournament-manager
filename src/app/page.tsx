@@ -269,18 +269,50 @@ export default function DashboardPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {tournaments.map(tourney => {
               const isActive = tourney.status === 'active';
+              const entryFee = tourney.entryFee || 0;
+
+              let cardStyle = "glass-panel glass-panel-hover rounded-2xl p-6 shadow-xl flex flex-col justify-between";
+              let feeBadge = null;
+
+              if (entryFee >= 2000) {
+                // Style B: 2000 or above (High Stakes gold highlight)
+                cardStyle = "glass-panel rounded-2xl p-6 shadow-xl flex flex-col justify-between transition-all duration-200 border-2 border-billiard-yellow/40 bg-gradient-to-b from-card to-billiard-yellow/[0.03] shadow-[0_0_20px_rgba(251,191,36,0.12)] hover:border-billiard-yellow/70 hover:shadow-[0_0_25px_rgba(251,191,36,0.3)] hover:translate-y-[-1px]";
+                feeBadge = (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide uppercase bg-billiard-yellow/10 text-billiard-yellow border border-billiard-yellow/30 animate-pulse">
+                    🏆 High Stakes (฿{entryFee})
+                  </span>
+                );
+              } else if (entryFee >= 1000) {
+                // Style A: 1999 or lower, but above 999 (Premium blue highlight)
+                cardStyle = "glass-panel rounded-2xl p-6 shadow-xl flex flex-col justify-between transition-all duration-200 border border-billiard-blue/40 bg-gradient-to-b from-card to-billiard-blue/[0.02] shadow-[0_0_15px_rgba(59,130,246,0.1)] hover:border-billiard-blue/70 hover:shadow-[0_0_20px_rgba(59,130,246,0.25)] hover:translate-y-[-1px]";
+                feeBadge = (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide uppercase bg-billiard-blue/15 text-billiard-blue border border-billiard-blue/30">
+                    ⭐ Premium (฿{entryFee})
+                  </span>
+                );
+              } else if (entryFee > 0) {
+                // Standard entry fee, no highlight
+                feeBadge = (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase bg-slate-800/80 text-slate-300 border border-slate-700/50">
+                    ฿{entryFee}
+                  </span>
+                );
+              }
 
               return (
                 <div
                   key={tourney.id}
-                  className="glass-panel glass-panel-hover rounded-2xl p-6 shadow-xl flex flex-col justify-between"
+                  className={cardStyle}
                 >
                   <div className="space-y-4">
                     {/* Header: Format + Status */}
                     <div className="flex items-center justify-between">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase ${getFormatBadgeStyle(tourney.gameType)}`}>
-                        {tourney.gameType}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase ${getFormatBadgeStyle(tourney.gameType)}`}>
+                          {tourney.gameType}
+                        </span>
+                        {feeBadge}
+                      </div>
                       {isActive ? (
                         <span className="flex items-center gap-1.5 text-xs text-primary font-bold">
                           <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
