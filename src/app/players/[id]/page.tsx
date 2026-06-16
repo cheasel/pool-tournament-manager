@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getDatabaseAdapter } from '@/lib/db';
 import { Player, TournamentDetails, HandicapHistoryEntry } from '@/types';
 import { getPlayerStats, PlayerStatsSummary } from '@/lib/stats';
+import { useAuth } from '@/context/AuthContext';
 import { 
   ArrowLeft, 
   Award, 
@@ -23,6 +24,14 @@ import {
 export default function PlayerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id: playerId } = React.use(params);
+  const { accounts } = useAuth();
+
+  const getAdminUsername = (email?: string) => {
+    if (!email) return 'System/Initial Seeding';
+    if (email === 'System/Initial Seeding') return email;
+    const account = accounts.find(a => a.email.toLowerCase() === email.toLowerCase());
+    return account ? account.username : email;
+  };
 
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<PlayerStatsSummary | null>(null);
@@ -584,7 +593,7 @@ export default function PlayerDetailPage({ params }: { params: Promise<{ id: str
                             )}
                           </td>
                           <td className="px-6 py-4 text-white font-bold">
-                            {entry.changedBy || 'System/Initial Seeding'}
+                            {getAdminUsername(entry.changedBy)}
                           </td>
                         </tr>
                       ))}
