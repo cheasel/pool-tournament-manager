@@ -1013,5 +1013,50 @@ describe('Bracket Engine Tests', () => {
 
     await db.deleteTournament(tournament.id);
   });
+
+  it('correctly retrieves and returns custom spots/ball handicap for 8-Ball matchups', () => {
+    const customRaceSetting = {
+      gameType: '8-Ball',
+      higherSkill: 6,
+      lowerSkill: 5,
+      raceStyle: 'default',
+      higherTarget: 5,
+      lowerTarget: 4,
+      spottedBalls: [1],
+    };
+
+    const isLocalStorageAvailable = typeof window !== 'undefined' && typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function' && typeof localStorage.removeItem === 'function';
+    if (isLocalStorageAvailable) {
+      localStorage.setItem('ptm_handicap_races', JSON.stringify([customRaceSetting]));
+    } else {
+      const store: Record<string, string> = {
+        ptm_handicap_races: JSON.stringify([customRaceSetting])
+      };
+      global.window = {
+        localStorage: {
+          getItem: (key: string) => store[key] || null,
+          setItem: (key: string, val: string) => { store[key] = val; },
+          removeItem: (key: string) => { delete store[key]; },
+        }
+      } as any;
+      global.localStorage = global.window.localStorage;
+    }
+
+    const p1: Player = { id: 'p1', name: 'Player 1', skillLevel8: 6, skillLevel9: 6, skillLevel10: 6, createdAt: '' };
+    const p2: Player = { id: 'p2', name: 'Player 2', skillLevel8: 5, skillLevel9: 5, skillLevel10: 5, createdAt: '' };
+
+    const handicap = calculateMatchHandicap(p1, p2, '8-Ball', 'default');
+    expect(handicap.player1Target).toBe(5);
+    expect(handicap.player2Target).toBe(4);
+    expect(handicap.player2SpottedBalls).toEqual([1]);
+    expect(handicap.player1SpottedBalls).toEqual([]);
+
+    if (isLocalStorageAvailable) {
+      localStorage.removeItem('ptm_handicap_races');
+    } else {
+      delete (global as any).window;
+      delete (global as any).localStorage;
+    }
+  });
 });
 

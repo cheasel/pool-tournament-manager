@@ -64,7 +64,7 @@ export function calculateMatchHandicap(
           if (matched) {
             higherTarget = matched.higherTarget;
             lowerTarget = matched.lowerTarget;
-            spots = gameType !== '8-Ball' ? (matched.spottedBalls || []) : [];
+            spots = matched.spottedBalls || [];
           }
         }
       } catch (e) {

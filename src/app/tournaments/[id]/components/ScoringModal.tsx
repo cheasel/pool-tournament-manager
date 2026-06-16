@@ -68,13 +68,29 @@ export default function ScoringModal({
           {scoringMatch.player1SpottedBalls.length > 0 && (
             <div className="flex justify-between text-accent font-medium mt-1">
               <span>Ball Spots:</span>
-              <span>{getPlayer(scoringMatch.player1Id).name} gets the [{scoringMatch.player1SpottedBalls.join(', ')}] spotted</span>
+              <span>
+                {getPlayer(scoringMatch.player1Id).name} gets{' '}
+                {tournament.gameType === '8-Ball' ? (
+                  `${scoringMatch.player1SpottedBalls.length} Ball${scoringMatch.player1SpottedBalls.length > 1 ? 's' : ''}`
+                ) : (
+                  `the [${scoringMatch.player1SpottedBalls.join(', ')}]`
+                )}{' '}
+                spotted
+              </span>
             </div>
           )}
           {scoringMatch.player2SpottedBalls.length > 0 && (
             <div className="flex justify-between text-accent font-medium mt-1">
               <span>Ball Spots:</span>
-              <span>{getPlayer(scoringMatch.player2Id).name} gets the [{scoringMatch.player2SpottedBalls.join(', ')}] spotted</span>
+              <span>
+                {getPlayer(scoringMatch.player2Id).name} gets{' '}
+                {tournament.gameType === '8-Ball' ? (
+                  `${scoringMatch.player2SpottedBalls.length} Ball${scoringMatch.player2SpottedBalls.length > 1 ? 's' : ''}`
+                ) : (
+                  `the [${scoringMatch.player2SpottedBalls.join(', ')}]`
+                )}{' '}
+                spotted
+              </span>
             </div>
           )}
         </div>
