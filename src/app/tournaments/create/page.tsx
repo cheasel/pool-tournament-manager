@@ -21,7 +21,12 @@ export default function CreateTournamentPage() {
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [name, setName] = useState('');
+
+  const filteredPlayers = players.filter(player =>
+    player.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
   const [gameType, setGameType] = useState<GameType>('8-Ball');
   const [raceStyle, setRaceStyle] = useState('default');
   const [availableStyles, setAvailableStyles] = useState<string[]>(['default', 'short', 'long']);
@@ -699,42 +704,70 @@ export default function CreateTournamentPage() {
                 to add players first.
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 max-h-[500px] overflow-y-auto pr-2">
-                {players.map(player => {
-                  const isSelected = selectedIds.includes(player.id);
-                  const sl =
-                    gameType === '8-Ball'
-                      ? player.skillLevel8
-                      : gameType === '9-Ball'
-                      ? player.skillLevel9
-                      : player.skillLevel10;
-
-                  return (
-                    <div
-                      key={player.id}
-                      onClick={() => togglePlayer(player.id)}
-                      className={`glass-panel p-3.5 rounded-xl flex items-center gap-3 cursor-pointer select-none transition-all ${
-                        isSelected
-                          ? 'border-primary/40 bg-primary/[0.03] shadow-[0_0_12px_rgba(16,185,129,0.05)]'
-                          : 'hover:border-border/80'
-                      }`}
+              <div className="space-y-4">
+                {/* Roster Search Bar */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search players by name..."
+                    className="w-full rounded-lg bg-background border border-border/40 px-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors font-semibold shadow-inner"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-xs font-bold text-muted-foreground hover:text-white"
                     >
-                      {isSelected ? (
-                        <CheckSquare className="h-5 w-5 text-primary shrink-0" />
-                      ) : (
-                        <Square className="h-5 w-5 text-muted shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-bold truncate ${isSelected ? 'text-white' : 'text-muted-foreground'}`}>
-                          {player.name}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-extrabold uppercase tracking-wide bg-background border border-border px-2 py-0.5 rounded text-muted-foreground">
-                        SL {sl}
-                      </span>
-                    </div>
-                  );
-                })}
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {filteredPlayers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-xs italic">
+                    No players found matching "{searchQuery}"
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 max-h-[500px] overflow-y-auto pr-2">
+                    {filteredPlayers.map(player => {
+                      const isSelected = selectedIds.includes(player.id);
+                      const sl =
+                        gameType === '8-Ball'
+                          ? player.skillLevel8
+                          : gameType === '9-Ball'
+                          ? player.skillLevel9
+                          : player.skillLevel10;
+
+                      return (
+                        <div
+                          key={player.id}
+                          onClick={() => togglePlayer(player.id)}
+                          className={`glass-panel p-3.5 rounded-xl flex items-center gap-3 cursor-pointer select-none transition-all ${
+                            isSelected
+                              ? 'border-primary/40 bg-primary/[0.03] shadow-[0_0_12px_rgba(16,185,129,0.05)]'
+                              : 'hover:border-border/80'
+                          }`}
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="h-5 w-5 text-primary shrink-0" />
+                          ) : (
+                            <Square className="h-5 w-5 text-muted shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-bold truncate ${isSelected ? 'text-white' : 'text-muted-foreground'}`}>
+                              {player.name}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wide bg-background border border-border px-2 py-0.5 rounded text-muted-foreground">
+                            SL {sl}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
