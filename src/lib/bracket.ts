@@ -172,12 +172,15 @@ export function resolveByeMatches(
 
     if (!p1 || !p2) continue;
 
+    let matchChanged = false;
+
     if (p1.isBye && p2.isBye) {
       // Both are BYEs, advance player 1
       m.status = 'completed';
       m.winnerId = p1.id;
       m.player1Score = m.player1Target;
       m.player2Score = 0;
+      matchChanged = true;
       changed = true;
     } else if (p1.isBye) {
       // Player 2 wins by BYE
@@ -185,6 +188,7 @@ export function resolveByeMatches(
       m.winnerId = p2.id;
       m.player2Score = m.player2Target;
       m.player1Score = 0;
+      matchChanged = true;
       changed = true;
     } else if (p2.isBye) {
       // Player 1 wins by BYE
@@ -192,11 +196,14 @@ export function resolveByeMatches(
       m.winnerId = p1.id;
       m.player1Score = m.player1Target;
       m.player2Score = 0;
+      matchChanged = true;
       changed = true;
     }
 
-    if (changed) {
-      advanceDoubleEliminationMatch(m, matches, playersMap, gameType);
+    if (matchChanged) {
+      if (m.roundType === 'group_winners' || m.roundType === 'group_losers') {
+        advanceDoubleEliminationMatch(m, matches, playersMap, gameType);
+      }
     }
   }
 
@@ -321,12 +328,12 @@ export function seedSingleElimination(
 
   for (const q of qualifiersList) {
     for (const w of q.winners) {
-      if (!playersMap[w]?.isBye) {
+      if (w && !w.includes('BYE') && !playersMap[w]?.isBye) {
         allWinners.push({ id: w, groupId: q.groupId });
       }
     }
     for (const l of q.losers) {
-      if (!playersMap[l]?.isBye) {
+      if (l && !l.includes('BYE') && !playersMap[l]?.isBye) {
         allLosers.push({ id: l, groupId: q.groupId });
       }
     }
@@ -358,8 +365,6 @@ export function seedSingleElimination(
   }
 
   // Combine real players + BYEs
-  // To reward the Winners, we pair Winners against Losers from other groups first.
-  // If we have remaining slots, we fill with BYEs (Winners get the BYEs first).
   const matches: Match[] = [];
   const now = new Date().toISOString();
 
@@ -368,8 +373,8 @@ export function seedSingleElimination(
   const numMatches = bracketSize / 2;
 
   // Let's pair them up.
-  // Group-avoidance algorithm:
-  // Sort Winners and Losers. For each Winner, try to find a Loser from a different group.
+  // We want to ensure BYEs are paired with real players first (rewarding Winners first, then Losers).
+  // This guarantees 0 BYE-BYE matches in Round 1 (no BYE will ever advance to Round 2) in standard brackets.
   const pairs: { p1: string; p2: string }[] = [];
   const usedWinners = new Set<string>();
   const usedLosers = new Set<string>();
@@ -380,9 +385,36 @@ export function seedSingleElimination(
     extendedPlayersMap[bye.id] = bye;
   }
 
-  // 1. First pair Winners with Losers from DIFFERENT groups
+  let byeIdx = 0;
+
+  // 1. Pair Winners with BYEs first (rewarding Winners with auto-wins)
   for (const w of allWinners) {
-    // Find a loser from a different group
+    if (byeIdx < byePlayers.length) {
+      pairs.push({ p1: w.id, p2: byePlayers[byeIdx].id });
+      usedWinners.add(w.id);
+      byeIdx++;
+    }
+  }
+
+  // 2. If there are still BYEs left, pair them with Losers
+  for (const l of allLosers) {
+    if (byeIdx < byePlayers.length) {
+      pairs.push({ p1: l.id, p2: byePlayers[byeIdx].id });
+      usedLosers.add(l.id);
+      byeIdx++;
+    }
+  }
+
+  // 3. If there are still BYEs left (e.g. B > R), pair remaining BYEs with each other
+  while (byeIdx < byePlayers.length - 1) {
+    pairs.push({ p1: byePlayers[byeIdx].id, p2: byePlayers[byeIdx + 1].id });
+    byeIdx += 2;
+  }
+
+  // 4. Pair remaining Winners and Losers with each other (group avoidance)
+  for (const w of allWinners) {
+    if (usedWinners.has(w.id)) continue;
+    // Try to find a Loser from a DIFFERENT group
     const partner = allLosers.find(l => l.groupId !== w.groupId && !usedLosers.has(l.id));
     if (partner) {
       pairs.push({ p1: w.id, p2: partner.id });
@@ -391,7 +423,7 @@ export function seedSingleElimination(
     }
   }
 
-  // 2. Pair remaining Winners with remaining Losers (even if same group, though should be avoided if possible)
+  // If same-group is unavoidable, pair leftover Winners with leftover Losers
   for (const w of allWinners) {
     if (usedWinners.has(w.id)) continue;
     const partner = allLosers.find(l => !usedLosers.has(l.id));
@@ -402,31 +434,23 @@ export function seedSingleElimination(
     }
   }
 
-  // 3. For any remaining Winners, pair with BYEs
-  let byeIdx = 0;
-  for (const w of allWinners) {
-    if (usedWinners.has(w.id)) continue;
-    if (byeIdx < byePlayers.length) {
-      pairs.push({ p1: w.id, p2: byePlayers[byeIdx].id });
-      usedWinners.add(w.id);
-      byeIdx++;
+  // 5. If we only have Losers left, pair them with each other (group avoidance)
+  const remainingLosers = allLosers.filter(l => !usedLosers.has(l.id));
+  while (remainingLosers.length > 0) {
+    const l1 = remainingLosers.shift()!;
+    // Try to find a partner from a different group
+    const partnerIdx = remainingLosers.findIndex(l2 => l2.groupId !== l1.groupId);
+    if (partnerIdx !== -1) {
+      const l2 = remainingLosers.splice(partnerIdx, 1)[0];
+      pairs.push({ p1: l1.id, p2: l2.id });
+    } else if (remainingLosers.length > 0) {
+      // Unavoidable same group
+      const l2 = remainingLosers.shift()!;
+      pairs.push({ p1: l1.id, p2: l2.id });
+    } else {
+      // Odd one out (should not happen since bracket is power of 2 and padded)
+      pairs.push({ p1: l1.id, p2: '' });
     }
-  }
-
-  // 4. For any remaining Losers, pair with BYEs
-  for (const l of allLosers) {
-    if (usedLosers.has(l.id)) continue;
-    if (byeIdx < byePlayers.length) {
-      pairs.push({ p1: l.id, p2: byePlayers[byeIdx].id });
-      usedLosers.add(l.id);
-      byeIdx++;
-    }
-  }
-
-  // 5. If there are still BYEs left, pair BYE with BYE (edge case)
-  while (byeIdx < byePlayers.length - 1) {
-    pairs.push({ p1: byePlayers[byeIdx].id, p2: byePlayers[byeIdx + 1].id });
-    byeIdx += 2;
   }
 
   // Generate the actual matches for Round 1 of Single Elimination
