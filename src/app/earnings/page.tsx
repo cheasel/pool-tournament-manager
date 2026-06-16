@@ -28,6 +28,7 @@ export default function EarningsPage() {
   const [activeTab, setActiveTab] = useState<'combined' | 'player' | 'owner'>('combined');
   const [tournamentsDetails, setTournamentsDetails] = useState<TournamentDetails[]>([]);
   const [gameTypeFilter, setGameTypeFilter] = useState<'all' | '8-Ball' | '9-Ball' | '10-Ball'>('all');
+  const [sortBy, setSortBy] = useState<'total' | 'net'>('total');
 
   const db = getDatabaseAdapter();
 
@@ -108,20 +109,32 @@ export default function EarningsPage() {
   const handleTabChange = (tab: 'combined' | 'player' | 'owner') => {
     setActiveTab(tab);
     setGameTypeFilter('all');
+    setSortBy('total');
   };
 
-  // Filtering based on search query
-  const filteredCombined = stats.combined.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter and sort combined
+  const filteredCombined = React.useMemo(() => {
+    const list = [...stats.combined].filter(c =>
+      c.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    return list.sort((a, b) => (sortBy === 'net' ? b.netProfit - a.netProfit : b.totalEarnings - a.totalEarnings));
+  }, [stats.combined, searchQuery, sortBy]);
 
-  const filteredPlayers = stats.players.filter(p =>
-    p.playerName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter and sort players
+  const filteredPlayers = React.useMemo(() => {
+    const list = [...stats.players].filter(p =>
+      p.playerName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    return list.sort((a, b) => (sortBy === 'net' ? b.netPlayerEarnings - a.netPlayerEarnings : b.totalEarnings - a.totalEarnings));
+  }, [stats.players, searchQuery, sortBy]);
 
-  const filteredOwners = stats.owners.filter(o =>
-    o.ownerName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter and sort owners
+  const filteredOwners = React.useMemo(() => {
+    const list = [...stats.owners].filter(o =>
+      o.ownerName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    return list.sort((a, b) => (sortBy === 'net' ? b.netOwnerEarnings - a.netOwnerEarnings : b.ownerCalcuttaShare - a.ownerCalcuttaShare));
+  }, [stats.owners, searchQuery, sortBy]);
 
   // Helper to format currency
   const formatCurrency = (amount: number) => {
@@ -233,38 +246,65 @@ export default function EarningsPage() {
               )}
             </div>
 
-            {/* Tab switchers */}
-            <div className="flex bg-slate-900/60 p-1 rounded-xl border border-border/40 self-start md:self-auto">
-              <button
-                onClick={() => handleTabChange('combined')}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'combined'
-                    ? 'bg-primary text-background shadow-md'
-                    : 'text-muted-foreground hover:text-white'
-                }`}
-              >
-                All Earnings
-              </button>
-              <button
-                onClick={() => handleTabChange('player')}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'player'
-                    ? 'bg-primary text-background shadow-md'
-                    : 'text-muted-foreground hover:text-white'
-                }`}
-              >
-                Players
-              </button>
-              <button
-                onClick={() => handleTabChange('owner')}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeTab === 'owner'
-                    ? 'bg-primary text-background shadow-md'
-                    : 'text-muted-foreground hover:text-white'
-                }`}
-              >
-                Owners
-              </button>
+            {/* Sort & Tab switchers */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center self-start md:self-auto w-full sm:w-auto">
+              {/* Sort controls */}
+              <div className="flex bg-slate-900/60 p-1 rounded-xl border border-border/40 text-[11px] sm:text-xs font-bold gap-1 self-start sm:self-auto w-full sm:w-auto">
+                <button
+                  onClick={() => setSortBy('total')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    sortBy === 'total'
+                      ? 'bg-primary text-background shadow-md'
+                      : 'text-muted-foreground hover:text-white'
+                  }`}
+                >
+                  Total Earning
+                </button>
+                <button
+                  onClick={() => setSortBy('net')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    sortBy === 'net'
+                      ? 'bg-primary text-background shadow-md'
+                      : 'text-muted-foreground hover:text-white'
+                  }`}
+                >
+                  Net Profit
+                </button>
+              </div>
+
+              {/* Tab switchers */}
+              <div className="flex bg-slate-900/60 p-1 rounded-xl border border-border/40 w-full sm:w-auto">
+                <button
+                  onClick={() => handleTabChange('combined')}
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    activeTab === 'combined'
+                      ? 'bg-primary text-background shadow-md'
+                      : 'text-muted-foreground hover:text-white'
+                  }`}
+                >
+                  All Earnings
+                </button>
+                <button
+                  onClick={() => handleTabChange('player')}
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    activeTab === 'player'
+                      ? 'bg-primary text-background shadow-md'
+                      : 'text-muted-foreground hover:text-white'
+                  }`}
+                >
+                  Players
+                </button>
+                <button
+                  onClick={() => handleTabChange('owner')}
+                  className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    activeTab === 'owner'
+                      ? 'bg-primary text-background shadow-md'
+                      : 'text-muted-foreground hover:text-white'
+                  }`}
+                >
+                  Owners
+                </button>
+              </div>
             </div>
           </div>
 
