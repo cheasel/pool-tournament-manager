@@ -449,7 +449,7 @@ export function seedSingleElimination(
     }
 
     matches.push({
-      id: `se_r1_m${i + 1}`,
+      id: `${tournamentId}_se_r1_m${i + 1}`,
       tournamentId,
       roundType: 'knockout',
       roundNumber: 1,
@@ -475,7 +475,7 @@ export function seedSingleElimination(
   while (currentRoundMatchesCount >= 1) {
     for (let i = 0; i < currentRoundMatchesCount; i++) {
       matches.push({
-        id: `se_r${roundNum}_m${i + 1}`,
+        id: `${tournamentId}_se_r${roundNum}_m${i + 1}`,
         tournamentId,
         roundType: 'knockout',
         roundNumber: roundNum,

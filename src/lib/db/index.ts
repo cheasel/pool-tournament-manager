@@ -191,7 +191,17 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
 
     const allPlayers = await this.getPlayers();
     const groups = this.getStorageItem<Group[]>('ptm_groups', []).filter(g => g.tournamentId === id);
-    const matches = this.getStorageItem<Match[]>('ptm_matches', []).filter(m => m.tournamentId === id);
+    const rawMatches = this.getStorageItem<Match[]>('ptm_matches', []).filter(m => m.tournamentId === id);
+
+    // Deduplicate matches by ID to prevent duplicate rendering keys
+    const seenMatches = new Map<string, Match>();
+    for (const m of rawMatches) {
+      const existing = seenMatches.get(m.id);
+      if (!existing || (m.status === 'completed' && existing.status !== 'completed')) {
+        seenMatches.set(m.id, m);
+      }
+    }
+    const matches = Array.from(seenMatches.values());
 
     // Extract all player IDs associated with this tournament (from groups and matches)
     const activePlayerIds = new Set<string>();
@@ -980,7 +990,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         status: g.status,
       }));
 
-      const matches: Match[] = (matchesData || []).map((m: any) => ({
+      const rawMatches: Match[] = (matchesData || []).map((m: any) => ({
         id: m.id,
         tournamentId: m.tournament_id,
         groupId: m.group_id,
@@ -1002,6 +1012,16 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         createdAt: m.created_at,
         handicapRaceStyle: m.handicap_race_style || 'default',
       }));
+
+      // Deduplicate matches by ID to prevent duplicate rendering keys
+      const seenMatches = new Map<string, Match>();
+      for (const m of rawMatches) {
+        const existing = seenMatches.get(m.id);
+        if (!existing || (m.status === 'completed' && existing.status !== 'completed')) {
+          seenMatches.set(m.id, m);
+        }
+      }
+      const matches = Array.from(seenMatches.values());
 
       const allPlayers = await this.getPlayers();
       const activePlayerIds = new Set<string>();
