@@ -843,7 +843,28 @@ export default function TournamentDetailPage() {
       >
         {/* Match Header */}
         <div className="flex justify-between items-center text-[9px] font-bold text-muted-foreground border-b border-border/40 pb-1 mb-0.5">
-          <span className="text-primary/95">MATCH #{match.matchNumber}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-primary/95">MATCH #{match.matchNumber}</span>
+            {isClickable && !isCompleted && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (confirm(`Recalculate handicap targets for Match #${match.matchNumber}?`)) {
+                    try {
+                      const updated = await db.recalculateMatchHandicap(id, match.id);
+                      setDetails(updated);
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : 'Recalculation failed');
+                    }
+                  }
+                }}
+                title="Recalculate handicap"
+                className="p-0.5 hover:bg-slate-800 rounded text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+              >
+                <RefreshCw className="h-2.5 w-2.5" />
+              </button>
+            )}
+          </div>
           <span>{isCompleted ? 'COMPLETED' : 'SCHEDULED'}</span>
         </div>
 
