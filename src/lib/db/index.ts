@@ -60,6 +60,7 @@ export interface DatabaseAdapter {
   getHandicapHistory(playerId?: string): Promise<HandicapHistoryEntry[]>;
   getHandicapRaces(): Promise<HandicapRaceSetting[]>;
   updateHandicapRaces(races: HandicapRaceSetting[]): Promise<HandicapRaceSetting[]>;
+  recalculateMatchHandicap(tournamentId: string, matchId: string): Promise<TournamentDetails>;
 }
 
 // ----------------------------------------------------
@@ -803,6 +804,40 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
   async updateHandicapRaces(races: HandicapRaceSetting[]): Promise<HandicapRaceSetting[]> {
     this.setStorageItem('ptm_handicap_races', races);
     return races;
+  }
+
+  async recalculateMatchHandicap(tournamentId: string, matchId: string): Promise<TournamentDetails> {
+    const details = await this.getTournamentDetails(tournamentId);
+    if (!details) throw new Error('Tournament not found');
+
+    const match = details.matches.find(m => m.id === matchId);
+    if (!match) throw new Error('Match not found');
+
+    if (!match.player1Id || !match.player2Id) {
+      throw new Error('Both players must be assigned to recalculate handicap');
+    }
+
+    const p1 = details.players.find(p => p.id === match.player1Id);
+    const p2 = details.players.find(p => p.id === match.player2Id);
+
+    if (p1 && p2) {
+      const hc = calculateMatchHandicap(p1, p2, details.tournament.gameType, match.handicapRaceStyle || 'default');
+      match.player1Target = hc.player1Target;
+      match.player2Target = hc.player2Target;
+      match.player1SpottedBalls = hc.player1SpottedBalls;
+      match.player2SpottedBalls = hc.player2SpottedBalls;
+
+      const currentMatches = this.getStorageItem<Match[]>('ptm_matches', []);
+      const idx = currentMatches.findIndex(m => m.id === matchId);
+      if (idx !== -1) {
+        currentMatches[idx] = match;
+        this.setStorageItem('ptm_matches', currentMatches);
+      }
+    }
+
+    const updatedDetails = await this.getTournamentDetails(tournamentId);
+    if (!updatedDetails) throw new Error('Failed to retrieve updated details');
+    return updatedDetails;
   }
 }
 
@@ -1914,6 +1949,86 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase updateHandicapRaces failed, falling back to LocalStorage', e);
       return localStorageAdapter.updateHandicapRaces(races);
+    }
+  }
+
+  async recalculateMatchHandicap(tournamentId: string, matchId: string): Promise<TournamentDetails> {
+    try {
+      const { data: matchData, error: mErr } = await this.client
+        .from('matches')
+        .select('*')
+        .eq('id', matchId)
+        .single();
+      
+      if (mErr || !matchData) throw new Error('Match not found in Supabase');
+
+      if (!matchData.player1_id || !matchData.player2_id) {
+        throw new Error('Both players must be assigned to recalculate handicap');
+      }
+
+      const { data: tournamentData, error: tErr } = await this.client
+        .from('tournaments')
+        .select('game_type')
+        .eq('id', tournamentId)
+        .single();
+
+      if (tErr || !tournamentData) throw new Error('Tournament not found in Supabase');
+
+      // Fetch both players
+      const { data: playersData, error: pErr } = await this.client
+        .from('players')
+        .select('*')
+        .in('id', [matchData.player1_id, matchData.player2_id]);
+
+      if (pErr || !playersData) throw new Error('Failed to retrieve player information in Supabase');
+
+      const mapPlayer = (d: any, id: string) => {
+        if (d) {
+          return {
+            id: d.id,
+            name: d.name,
+            skillLevel8: d.skill_level_8,
+            skillLevel9: d.skill_level_9,
+            skillLevel10: d.skill_level_10,
+            createdAt: d.created_at,
+          };
+        }
+        return {
+          id,
+          name: 'BYE',
+          skillLevel8: 3,
+          skillLevel9: 3,
+          skillLevel10: 3,
+          createdAt: new Date().toISOString(),
+          isBye: true,
+        };
+      };
+
+      const p1Data = playersData.find(p => p.id === matchData.player1_id);
+      const p2Data = playersData.find(p => p.id === matchData.player2_id);
+
+      const p1 = mapPlayer(p1Data, matchData.player1_id);
+      const p2 = mapPlayer(p2Data, matchData.player2_id);
+
+      const hc = calculateMatchHandicap(p1, p2, tournamentData.game_type, matchData.handicap_race_style || 'default');
+      const { error: updErr } = await this.client
+        .from('matches')
+        .update({
+          player1_target: hc.player1Target,
+          player2_target: hc.player2Target,
+          player1_spotted_balls: hc.player1SpottedBalls,
+          player2_spotted_balls: hc.player2SpottedBalls,
+        })
+        .eq('id', matchId);
+
+      if (updErr) throw updErr;
+
+      const details = await this.getTournamentDetails(tournamentId);
+      if (!details) throw new Error('Failed to retrieve updated details');
+      return details;
+    } catch (e) {
+      console.warn('Supabase recalculateMatchHandicap failed, falling back to LocalStorage', e);
+      return localStorageAdapter.recalculateMatchHandicap(tournamentId, matchId);
     }
   }
 }

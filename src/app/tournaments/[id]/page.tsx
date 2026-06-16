@@ -10,7 +10,7 @@ import PaymentsTab from './components/PaymentsTab';
 import EarningsTab from './components/EarningsTab';
 import ScoringModal from './components/ScoringModal';
 import { useAuth } from '@/context/AuthContext';
-import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info } from 'lucide-react';
+import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info, RefreshCw } from 'lucide-react';
 
 export default function TournamentDetailPage() {
   const { isAuthenticated, user } = useAuth();
@@ -612,9 +612,30 @@ export default function TournamentDetailPage() {
         {/* Match Header info */}
         <div className="flex justify-between items-center text-[10px] text-muted-foreground border-b border-border/40 pb-1.5 mb-2">
           <span className="font-extrabold uppercase text-primary/80">Match #{match.matchNumber}</span>
-          <span className="font-medium">
-            {match.roundType === 'knockout' ? `Round ${match.roundNumber}` : `DE Group`}
-          </span>
+          <div className="flex items-center gap-1.5 font-medium">
+            {match.roundType === 'knockout' && isClickable && !isCompleted && (
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (confirm(`Recalculate handicap targets for Match #${match.matchNumber}?`)) {
+                    try {
+                      const updated = await db.recalculateMatchHandicap(id, match.id);
+                      setDetails(updated);
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : 'Recalculation failed');
+                    }
+                  }
+                }}
+                title="Recalculate handicap"
+                className="p-1 hover:bg-slate-800 rounded text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            )}
+            <span>
+              {match.roundType === 'knockout' ? `Round ${match.roundNumber}` : `DE Group`}
+            </span>
+          </div>
         </div>
 
         {/* Player 1 Row */}

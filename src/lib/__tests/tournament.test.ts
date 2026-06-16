@@ -975,5 +975,43 @@ describe('Bracket Engine Tests', () => {
       expect(m.handicapRaceStyle).toBe('short');
     });
   });
+
+  it('manually recalculates match handicaps using recalculateMatchHandicap method', async () => {
+    const db = getDatabaseAdapter();
+    const playersRoster = ['efren', 'svb', 'filler', 'gorst', 'shaw', 'strickland', 'albin', 'bustamante'];
+    const tournament = await db.createTournament(
+      'Manual Recalc Test',
+      '9-Ball',
+      playersRoster,
+      10,
+      [100]
+    );
+
+    const details = await db.startTournament(tournament.id, []);
+    const match = details.matches.find(m => m.player1Id === 'efren' || m.player2Id === 'efren');
+    expect(match).toBeDefined();
+
+    if (match) {
+      // Set target races manually to check recalculation later
+      match.player1Target = 99;
+      match.player2Target = 99;
+
+      const currentMatches = (db as any).getStorageItem('ptm_matches', []);
+      const idx = currentMatches.findIndex((m: any) => m.id === match.id);
+      if (idx !== -1) {
+        currentMatches[idx] = match;
+        (db as any).setStorageItem('ptm_matches', currentMatches);
+      }
+
+      // Now run recalculation
+      const updatedDetails = await db.recalculateMatchHandicap(tournament.id, match.id);
+      const updatedMatch = updatedDetails.matches.find(m => m.id === match.id);
+      expect(updatedMatch).toBeDefined();
+      expect(updatedMatch?.player1Target).not.toBe(99);
+      expect(updatedMatch?.player2Target).not.toBe(99);
+    }
+
+    await db.deleteTournament(tournament.id);
+  });
 });
 
