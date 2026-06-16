@@ -117,6 +117,20 @@ export default function HandicapManagementPage() {
     }));
   };
 
+  const handleSetSpots = (lowerSkill: number, updatedSpots: number[]) => {
+    setRaces(prev => prev.map(r => {
+      if (
+        r.gameType === activeTab &&
+        (r.raceStyle || 'default') === selectedStyle &&
+        r.higherSkill === selectedHigherSkill &&
+        r.lowerSkill === lowerSkill
+      ) {
+        return { ...r, spottedBalls: updatedSpots };
+      }
+      return r;
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSuccessMsg('');
@@ -379,12 +393,11 @@ export default function HandicapManagementPage() {
                 <th className="py-3 px-6 text-center w-[15%]">Difference</th>
                 <th className="py-3 px-6 text-center w-[20%]">Higher Player Race</th>
                 <th className="py-3 px-6 text-center w-[20%]">Lower Player Race</th>
-                <th className="py-3 px-6 text-center w-[25%]">Lower Player Spots (9/10-Ball)</th>
+                <th className="py-3 px-6 text-center w-[25%]">Lower Player Spots / Balls Given</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/10 font-bold text-xs text-slate-200">
               {displayedRaces.map(row => {
-                const isSpottingApplicable = activeTab !== '8-Ball';
                 const spots = row.spottedBalls || [];
                 const diff = row.higherSkill - row.lowerSkill;
 
@@ -460,7 +473,31 @@ export default function HandicapManagementPage() {
 
                     {/* Spots Toggles */}
                     <td className="py-4 px-6">
-                      {isSpottingApplicable ? (
+                      {activeTab === '8-Ball' ? (
+                        <div className="flex items-center justify-center gap-2 select-none">
+                          {[0, 1, 2, 3].map(count => {
+                            const currentCount = spots.length;
+                            const isSelected = currentCount === count;
+                            return (
+                              <button
+                                key={count}
+                                type="button"
+                                onClick={() => {
+                                  const updatedSpots = count === 0 ? [] : Array.from({ length: count }, (_, i) => i + 1);
+                                  handleSetSpots(row.lowerSkill, updatedSpots);
+                                }}
+                                className={`h-8 px-2.5 rounded text-[10px] font-black transition-all border cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-accent text-background border-accent shadow-[0_0_8px_rgba(251,191,36,0.3)]'
+                                    : 'bg-slate-950 text-muted-foreground border-border/40 hover:text-white hover:border-muted'
+                                }`}
+                              >
+                                {count === 0 ? 'None' : `${count} Ball${count > 1 ? 's' : ''}`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
                         <div className="flex items-center justify-center gap-2 select-none">
                           {[6, 7, 8].map(ball => {
                             const isSpotted = spots.includes(ball);
@@ -480,10 +517,6 @@ export default function HandicapManagementPage() {
                               </button>
                             );
                           })}
-                        </div>
-                      ) : (
-                        <div className="text-center text-[10px] text-muted-foreground uppercase font-black tracking-wider py-1">
-                          N/A (No spots in 8-Ball)
                         </div>
                       )}
                     </td>

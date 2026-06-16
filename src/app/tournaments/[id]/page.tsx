@@ -654,10 +654,18 @@ export default function TournamentDetailPage() {
               </div>
               {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && (
                 <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm">
-                  <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
-                  <div className="flex gap-1">
-                    {match.player1SpottedBalls.map(num => renderBallIcon(num))}
-                  </div>
+                  {tournament.gameType === '8-Ball' ? (
+                    <span className="text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider px-0.5">
+                      {match.player1SpottedBalls.length} Ball{match.player1SpottedBalls.length > 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                      <div className="flex gap-1">
+                        {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -712,10 +720,18 @@ export default function TournamentDetailPage() {
               </div>
               {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && (
                 <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm">
-                  <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
-                  <div className="flex gap-1">
-                    {match.player2SpottedBalls.map(num => renderBallIcon(num))}
-                  </div>
+                  {tournament.gameType === '8-Ball' ? (
+                    <span className="text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider px-0.5">
+                      {match.player2SpottedBalls.length} Ball{match.player2SpottedBalls.length > 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                      <div className="flex gap-1">
+                        {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -855,10 +871,18 @@ export default function TournamentDetailPage() {
             </span>
             {match.player1SpottedBalls && match.player1SpottedBalls.length > 0 && !isP1Qualified && (
               <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm animate-fade-in">
-                <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
-                <div className="flex gap-1">
-                  {match.player1SpottedBalls.map(num => renderBallIcon(num))}
-                </div>
+                {tournament.gameType === '8-Ball' ? (
+                  <span className="text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider px-0.5">
+                    {match.player1SpottedBalls.length} Ball{match.player1SpottedBalls.length > 1 ? 's' : ''}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                    <div className="flex gap-1">
+                      {match.player1SpottedBalls.map(num => renderBallIcon(num))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -913,10 +937,18 @@ export default function TournamentDetailPage() {
             </span>
             {match.player2SpottedBalls && match.player2SpottedBalls.length > 0 && !isP2Qualified && (
               <div className="flex items-center gap-1 bg-slate-200/90 border border-slate-300 rounded px-1.5 py-0.5 mt-1 self-start shadow-sm animate-fade-in">
-                <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
-                <div className="flex gap-1">
-                  {match.player2SpottedBalls.map(num => renderBallIcon(num))}
-                </div>
+                {tournament.gameType === '8-Ball' ? (
+                  <span className="text-[8.5px] font-extrabold text-slate-700 uppercase tracking-wider px-0.5">
+                    {match.player2SpottedBalls.length} Ball{match.player2SpottedBalls.length > 1 ? 's' : ''}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-[8px] font-bold text-slate-700 mr-1 uppercase tracking-wider">Spot:</span>
+                    <div className="flex gap-1">
+                      {match.player2SpottedBalls.map(num => renderBallIcon(num))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
