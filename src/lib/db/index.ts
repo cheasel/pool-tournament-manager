@@ -1330,6 +1330,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
             player2_spotted_balls: m.player2SpottedBalls,
             status: m.status,
             winner_id: m.winnerId,
+            handicap_race_style: m.handicapRaceStyle || 'default',
           }));
 
           const { error: insErr } = await this.client.from('matches').insert(dbKnockouts);
@@ -1380,6 +1381,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         winner_id: m.winnerId || null,
         player1_stats: m.player1Stats || {},
         player2_stats: m.player2Stats || {},
+        handicap_race_style: m.handicapRaceStyle || 'default',
       }));
 
       const { error: upsErr } = await this.client.from('matches').upsert(matchesToUpsert);
@@ -1556,6 +1558,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         player2_spotted_balls: m.player2SpottedBalls,
         status: m.status,
         winner_id: m.winnerId || null,
+        handicap_race_style: m.handicapRaceStyle || 'default',
       }));
 
       const { error: insErr } = await this.client.from('matches').insert(dbMatches);
@@ -1693,6 +1696,7 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
         winner_id: m.winnerId || null,
         player1_stats: m.player1Stats || {},
         player2_stats: m.player2Stats || {},
+        handicap_race_style: m.handicapRaceStyle || 'default',
       }));
 
       const { error: upsErr } = await this.client.from('matches').upsert(matchesToUpsert);
