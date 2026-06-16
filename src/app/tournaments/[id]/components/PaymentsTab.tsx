@@ -224,26 +224,36 @@ export default function PaymentsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/20 text-xs font-bold">
-                {players.filter(p => !p.isBye).map(p => {
-                  const isPaid = (tournament.entryFeePaidIds || []).includes(p.id);
-                  return (
-                    <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="py-4 px-6 text-sm text-white font-black">{p.name}</td>
-                      <td className="py-4 px-6 text-right text-slate-300">฿{tournament.entryFee || 0}</td>
-                      <td className="py-4 px-6 text-center">
-                        <label className="inline-flex items-center justify-center cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={isPaid}
-                            onChange={() => onTogglePayment('entry', p.id)}
-                            disabled={!canEdit}
-                            className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                        </label>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {players
+                  .filter(p => !p.isBye)
+                  .map(p => ({
+                    player: p,
+                    isPaid: (tournament.entryFeePaidIds || []).includes(p.id),
+                  }))
+                  .sort((a, b) => {
+                    if (a.isPaid && !b.isPaid) return 1;
+                    if (!a.isPaid && b.isPaid) return -1;
+                    return a.player.name.localeCompare(b.player.name);
+                  })
+                  .map(({ player: p, isPaid }) => {
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
+                        <td className="py-4 px-6 text-sm text-white font-black">{p.name}</td>
+                        <td className="py-4 px-6 text-right text-slate-300">฿{tournament.entryFee || 0}</td>
+                        <td className="py-4 px-6 text-center">
+                          <label className="inline-flex items-center justify-center cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={isPaid}
+                              onChange={() => onTogglePayment('entry', p.id)}
+                              disabled={!canEdit}
+                              className="rounded accent-primary bg-background border-border h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                          </label>
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
