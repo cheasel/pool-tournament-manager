@@ -279,13 +279,14 @@ export default function EarningsPage() {
                       <th className="py-4 px-6">Name</th>
                       <th className="py-4 px-6 text-right">Player Earning</th>
                       <th className="py-4 px-6 text-right">Owner Earning</th>
+                      <th className="py-4 px-6 text-right">Net Profit</th>
                       <th className="py-4 px-6 text-right text-white">Total Earning</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/20 text-xs font-bold">
                     {filteredCombined.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center text-muted-foreground italic">
+                        <td colSpan={6} className="py-12 text-center text-muted-foreground italic">
                           No records found.
                         </td>
                       </tr>
@@ -326,6 +327,9 @@ export default function EarningsPage() {
                           </td>
                           <td className="py-4 px-6 text-right text-slate-300">
                             {row.ownerEarnings > 0 ? formatCurrency(row.ownerEarnings) : '—'}
+                          </td>
+                          <td className={`py-4 px-6 text-right ${row.netProfit >= 0 ? 'text-primary' : 'text-billiard-red'}`}>
+                            {row.netProfit >= 0 ? '+' : ''}{formatCurrency(row.netProfit)}
                           </td>
                           <td className="py-4 px-6 text-right text-base font-black text-emerald-400">
                             {formatCurrency(row.totalEarnings)}

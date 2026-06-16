@@ -214,7 +214,9 @@ describe('Earnings Calculation Engine', () => {
     const combOwnerA = globalStats.combined.find(c => c.name === 'Owner A')!;
 
     expect(combP1.totalEarnings).toBe(400);
+    expect(combP1.netProfit).toBe(300);
     expect(combOwnerA.totalEarnings).toBe(300);
+    expect(combOwnerA.netProfit).toBe(120);
   });
 
   describe('Joint Calcutta Bids (buyerName2)', () => {

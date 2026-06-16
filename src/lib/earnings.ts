@@ -49,6 +49,7 @@ export interface CombinedGlobalEarnings {
   playerEarnings: number;
   ownerEarnings: number;
   totalEarnings: number;
+  netProfit: number;
 }
 
 /**
@@ -263,7 +264,7 @@ export function aggregateGlobalEarnings(tournamentsDetails: TournamentDetails[])
 } {
   const playerMap: Record<string, { name: string; playerPayout: number; playerCalcuttaShare: number; netPlayerEarnings: number }> = {};
   const ownerMap: Record<string, { ownerCalcuttaShare: number; netOwnerEarnings: number }> = {};
-  const combinedMap: Record<string, { playerEarnings: number; ownerEarnings: number }> = {};
+  const combinedMap: Record<string, { playerEarnings: number; ownerEarnings: number; netProfit: number }> = {};
 
   for (const details of tournamentsDetails) {
     // Only aggregate if tournament is completed to ensure final standings
@@ -287,9 +288,10 @@ export function aggregateGlobalEarnings(tournamentsDetails: TournamentDetails[])
 
       // Combined - Player component
       if (!combinedMap[earn.playerName]) {
-        combinedMap[earn.playerName] = { playerEarnings: 0, ownerEarnings: 0 };
+        combinedMap[earn.playerName] = { playerEarnings: 0, ownerEarnings: 0, netProfit: 0 };
       }
       combinedMap[earn.playerName].playerEarnings += earn.playerPayout + earn.playerCalcuttaShare;
+      combinedMap[earn.playerName].netProfit += earn.netPlayerEarnings;
 
       // Aggregate owner
       if (earn.calcuttaOwner) {
@@ -306,9 +308,10 @@ export function aggregateGlobalEarnings(tournamentsDetails: TournamentDetails[])
 
         // Combined - Owner component
         if (!combinedMap[ownerName]) {
-          combinedMap[ownerName] = { playerEarnings: 0, ownerEarnings: 0 };
+          combinedMap[ownerName] = { playerEarnings: 0, ownerEarnings: 0, netProfit: 0 };
         }
         combinedMap[ownerName].ownerEarnings += earn.ownerCalcuttaShare;
+        combinedMap[ownerName].netProfit += earn.netOwnerEarnings;
       }
 
       // Aggregate owner 2
@@ -326,9 +329,10 @@ export function aggregateGlobalEarnings(tournamentsDetails: TournamentDetails[])
 
         // Combined - Owner component
         if (!combinedMap[owner2Name]) {
-          combinedMap[owner2Name] = { playerEarnings: 0, ownerEarnings: 0 };
+          combinedMap[owner2Name] = { playerEarnings: 0, ownerEarnings: 0, netProfit: 0 };
         }
         combinedMap[owner2Name].ownerEarnings += earn.owner2CalcuttaShare || 0;
+        combinedMap[owner2Name].netProfit += earn.netOwner2Earnings || 0;
       }
     }
   }
@@ -354,6 +358,7 @@ export function aggregateGlobalEarnings(tournamentsDetails: TournamentDetails[])
     playerEarnings: data.playerEarnings,
     ownerEarnings: data.ownerEarnings,
     totalEarnings: data.playerEarnings + data.ownerEarnings,
+    netProfit: data.netProfit,
   })).sort((a, b) => b.totalEarnings - a.totalEarnings);
 
   return { players, owners, combined };
