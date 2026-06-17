@@ -1815,7 +1815,7 @@ export default function TournamentDetailPage() {
 
           {/* Group Stage Tab View */}
           {activeTab === 'groups' && (
-            <div className="space-y-6">
+            <div ref={groupBracketRef} className="space-y-6 bracket-fullscreen-container">
               {/* Group Tabs & Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/20 pb-4">
                 <div className="flex flex-wrap gap-2">
@@ -1874,18 +1874,8 @@ export default function TournamentDetailPage() {
               {activeGroup && (
                 <div className="space-y-8">
                   {/* Staggered DE Bracket Tree */}
-                  <div ref={groupBracketRef} className="w-full overflow-x-auto pb-6 bracket-fullscreen-container">
+                  <div className="w-full overflow-x-auto pb-6">
                     <div className="flex gap-4 sm:gap-6 md:gap-8 justify-between items-center py-6 px-4 bg-slate-950/40 rounded-3xl border border-white/5 p-6 min-w-[1200px] relative">
-                      {isFullscreen && (
-                        <button
-                          type="button"
-                          onClick={() => document.exitFullscreen()}
-                          className="absolute top-4 right-4 z-50 inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer shadow-lg"
-                        >
-                          <Minimize2 className="h-4 w-4 text-primary" />
-                          Exit Fullscreen
-                        </button>
-                      )}
                       
                       {/* Glowing Group Badge in Background */}
                       <div className="absolute top-4 left-4 z-10">
@@ -2159,7 +2149,7 @@ export default function TournamentDetailPage() {
 
       {/* Knockout Bracket Tab View */}
       {activeTab === 'knockout' && (
-        <div className="space-y-6 overflow-x-auto pb-4">
+        <div ref={knockoutBracketRef} className="space-y-6 bracket-fullscreen-container">
           {knockoutMatches.length === 0 ? (
             <div className="glass-panel rounded-2xl p-8 text-center text-muted-foreground max-w-lg mx-auto">
               <Award className="h-8 w-8 mx-auto text-muted mb-2 animate-bounce" />
@@ -2181,17 +2171,7 @@ export default function TournamentDetailPage() {
                 </button>
               </div>
 
-              <div ref={knockoutBracketRef} className="overflow-x-auto pb-4 bracket-fullscreen-container relative">
-                {isFullscreen && (
-                  <button
-                    type="button"
-                    onClick={() => document.exitFullscreen()}
-                    className="absolute top-4 right-4 z-50 inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer shadow-lg"
-                  >
-                    <Minimize2 className="h-4 w-4 text-primary" />
-                    Exit Fullscreen
-                  </button>
-                )}
+              <div className="overflow-x-auto pb-4">
                 <div className="flex gap-8 min-w-[800px] justify-between p-6 bg-slate-950/40 rounded-3xl border border-white/5">
                   {Array.from({ length: maxKnockoutRound }).map((_, rIdx) => {
                     const roundNum = rIdx + 1;
