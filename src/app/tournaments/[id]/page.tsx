@@ -1765,7 +1765,7 @@ export default function TournamentDetailPage() {
                 Earnings
               </button>
             )}
-            {(tournament.status === 'active' || tournament.status === 'completed') && (
+            {isAuthenticated && (tournament.status === 'active' || tournament.status === 'completed') && (
               <button
                 onClick={() => setActiveTab('payments')}
                 className={`px-6 py-3 text-sm font-bold border-b-2 transition-all cursor-pointer ${
@@ -2154,7 +2154,7 @@ export default function TournamentDetailPage() {
       )}
 
       {/* Payments Tab View */}
-      {activeTab === 'payments' && (
+      {activeTab === 'payments' && isAuthenticated && (
         <PaymentsTab
           details={details}
           tournament={tournament}
