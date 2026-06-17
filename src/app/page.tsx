@@ -284,7 +284,7 @@ export default function DashboardPage() {
 
               if (entryFee >= 2000) {
                 // Style B: 2000 or above (High Stakes gold highlight)
-                cardStyle = "glass-panel rounded-2xl p-6 shadow-xl flex flex-col justify-between transition-all duration-200 border-2 border-billiard-yellow/70 bg-gradient-to-b from-card to-billiard-yellow/[0.06] shadow-[0_0_25px_rgba(251,191,36,0.22)] hover:border-billiard-yellow hover:shadow-[0_0_35px_rgba(251,191,36,0.45)] hover:translate-y-[-2px]";
+                cardStyle = "bg-[#161f30]/85 backdrop-blur-[12px] rounded-2xl p-6 shadow-xl flex flex-col justify-between transition-all duration-200 border-2 border-billiard-yellow/90 bg-gradient-to-b from-[#161f30]/90 to-billiard-yellow/[0.08] shadow-[0_0_30px_rgba(251,191,36,0.25)] hover:border-billiard-yellow hover:shadow-[0_0_40px_rgba(251,191,36,0.5)] hover:translate-y-[-3px]";
                 feeBadge = (
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide uppercase bg-billiard-yellow/10 text-billiard-yellow border border-billiard-yellow/30 animate-pulse">
                     🏆 High Stakes (฿{entryFee})
@@ -292,7 +292,7 @@ export default function DashboardPage() {
                 );
               } else if (entryFee >= 1000) {
                 // Style A: 1999 or lower, but above 999 (Premium blue highlight)
-                cardStyle = "glass-panel rounded-2xl p-6 shadow-xl flex flex-col justify-between transition-all duration-200 border-2 border-billiard-blue/60 bg-gradient-to-b from-card to-billiard-blue/[0.04] shadow-[0_0_20px_rgba(59,130,246,0.18)] hover:border-billiard-blue hover:shadow-[0_0_30px_rgba(59,130,246,0.38)] hover:translate-y-[-2px]";
+                cardStyle = "bg-[#161f30]/85 backdrop-blur-[12px] rounded-2xl p-6 shadow-xl flex flex-col justify-between transition-all duration-200 border-2 border-billiard-blue/80 bg-gradient-to-b from-[#161f30]/90 to-billiard-blue/[0.06] shadow-[0_0_25px_rgba(59,130,246,0.2)] hover:border-billiard-blue hover:shadow-[0_0_35px_rgba(59,130,246,0.4)] hover:translate-y-[-3px]";
                 feeBadge = (
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide uppercase bg-billiard-blue/15 text-billiard-blue border border-billiard-blue/30">
                     ⭐ Premium (฿{entryFee})
