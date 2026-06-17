@@ -10,13 +10,47 @@ import PaymentsTab from './components/PaymentsTab';
 import EarningsTab from './components/EarningsTab';
 import ScoringModal from './components/ScoringModal';
 import { useAuth } from '@/context/AuthContext';
-import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info, RefreshCw } from 'lucide-react';
+import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
 
 export default function TournamentDetailPage() {
   const { isAuthenticated, user } = useAuth();
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+
+  const groupBracketRef = React.useRef<HTMLDivElement>(null);
+  const knockoutBracketRef = React.useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleGroupFullscreen = () => {
+    if (!document.fullscreenElement) {
+      groupBracketRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error enabling full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const toggleKnockoutFullscreen = () => {
+    if (!document.fullscreenElement) {
+      knockoutBracketRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error enabling full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   const [details, setDetails] = useState<TournamentDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1782,21 +1816,31 @@ export default function TournamentDetailPage() {
           {/* Group Stage Tab View */}
           {activeTab === 'groups' && (
             <div className="space-y-6">
-              {/* Group Tabs */}
-              <div className="flex flex-wrap gap-2">
-                {groups.map(g => (
-                  <button
-                    key={g.id}
-                    onClick={() => setActiveGroupId(g.id)}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-                      activeGroupId === g.id
-                        ? 'bg-primary text-background border-primary shadow-[0_0_12px_rgba(16,185,129,0.25)]'
-                        : 'bg-card text-muted-foreground border-border hover:text-white'
-                    }`}
-                  >
-                    {g.name}
-                  </button>
-                ))}
+              {/* Group Tabs & Actions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/20 pb-4">
+                <div className="flex flex-wrap gap-2">
+                  {groups.map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => setActiveGroupId(g.id)}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                        activeGroupId === g.id
+                          ? 'bg-primary text-background border-primary shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                          : 'bg-card text-muted-foreground border-border hover:text-white'
+                      }`}
+                    >
+                      {g.name}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleGroupFullscreen}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer"
+                >
+                  {isFullscreen ? <Minimize2 className="h-4 w-4 text-primary" /> : <Maximize2 className="h-4 w-4 text-primary" />}
+                  {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Bracket'}
+                </button>
               </div>
 
               {/* Swap Warning Banner */}
@@ -1830,8 +1874,18 @@ export default function TournamentDetailPage() {
               {activeGroup && (
                 <div className="space-y-8">
                   {/* Staggered DE Bracket Tree */}
-                  <div className="w-full overflow-x-auto pb-6">
+                  <div ref={groupBracketRef} className="w-full overflow-x-auto pb-6 bracket-fullscreen-container">
                     <div className="flex gap-4 sm:gap-6 md:gap-8 justify-between items-center py-6 px-4 bg-slate-950/40 rounded-3xl border border-white/5 p-6 min-w-[1200px] relative">
+                      {isFullscreen && (
+                        <button
+                          type="button"
+                          onClick={() => document.exitFullscreen()}
+                          className="absolute top-4 right-4 z-50 inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer shadow-lg"
+                        >
+                          <Minimize2 className="h-4 w-4 text-primary" />
+                          Exit Fullscreen
+                        </button>
+                      )}
                       
                       {/* Glowing Group Badge in Background */}
                       <div className="absolute top-4 left-4 z-10">
@@ -2115,31 +2169,56 @@ export default function TournamentDetailPage() {
               </p>
             </div>
           ) : (
-            <div className="flex gap-8 min-w-[800px] justify-between">
-              {Array.from({ length: maxKnockoutRound }).map((_, rIdx) => {
-                const roundNum = rIdx + 1;
-                const roundMatches = knockoutMatches.filter(m => m.roundNumber === roundNum);
-                
-                let roundName = `Round of ${roundMatches.length * 2}`;
-                if (roundMatches.length === 4) roundName = 'Quarterfinals';
-                if (roundMatches.length === 2) roundName = 'Semifinals';
-                if (roundMatches.length === 1) roundName = 'Finals';
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={toggleKnockoutFullscreen}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer"
+                >
+                  {isFullscreen ? <Minimize2 className="h-4 w-4 text-primary" /> : <Maximize2 className="h-4 w-4 text-primary" />}
+                  {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Bracket'}
+                </button>
+              </div>
 
-                return (
-                  <div key={roundNum} className="flex-1 space-y-4">
-                    <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest border-b border-border/40 pb-1.5">
-                      {roundName}
-                    </p>
-                    <div className="space-y-6 flex flex-col justify-around h-full min-h-[400px]">
-                      {roundMatches.map(m => (
-                        <div key={m.id} className="py-2">
-                          {renderMatchCard(m)}
+              <div ref={knockoutBracketRef} className="overflow-x-auto pb-4 bracket-fullscreen-container relative">
+                {isFullscreen && (
+                  <button
+                    type="button"
+                    onClick={() => document.exitFullscreen()}
+                    className="absolute top-4 right-4 z-50 inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer shadow-lg"
+                  >
+                    <Minimize2 className="h-4 w-4 text-primary" />
+                    Exit Fullscreen
+                  </button>
+                )}
+                <div className="flex gap-8 min-w-[800px] justify-between p-6 bg-slate-950/40 rounded-3xl border border-white/5">
+                  {Array.from({ length: maxKnockoutRound }).map((_, rIdx) => {
+                    const roundNum = rIdx + 1;
+                    const roundMatches = knockoutMatches.filter(m => m.roundNumber === roundNum);
+                    
+                    let roundName = `Round of ${roundMatches.length * 2}`;
+                    if (roundMatches.length === 4) roundName = 'Quarterfinals';
+                    if (roundMatches.length === 2) roundName = 'Semifinals';
+                    if (roundMatches.length === 1) roundName = 'Finals';
+
+                    return (
+                      <div key={roundNum} className="flex-1 space-y-4">
+                        <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest border-b border-border/40 pb-1.5">
+                          {roundName}
+                        </p>
+                        <div className="space-y-6 flex flex-col justify-around h-full min-h-[400px]">
+                          {roundMatches.map(m => (
+                            <div key={m.id} className="py-2">
+                              {renderMatchCard(m)}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
