@@ -1844,7 +1844,7 @@ export default function TournamentDetailPage() {
               </div>
 
               {/* Swap Warning Banner */}
-              {canSwap && !swapSourcePlayer && (
+              {!isFullscreen && canSwap && !swapSourcePlayer && (
                 <div className="glass-panel border-primary/20 bg-primary/5 p-3.5 rounded-xl flex items-center gap-2 text-xs text-primary-hover font-semibold animate-fade-in shrink-0">
                   <Info className="h-4.5 w-4.5 text-primary shrink-0" />
                   <span>
@@ -1853,7 +1853,7 @@ export default function TournamentDetailPage() {
                 </div>
               )}
 
-              {swapSourcePlayer && (
+              {!isFullscreen && swapSourcePlayer && (
                 <div className="glass-panel border-amber-500/30 bg-amber-950/20 p-4 rounded-xl flex items-center justify-between text-xs text-amber-200 font-bold animate-pulse shrink-0">
                   <div className="flex items-center gap-2">
                     <Info className="h-4.5 w-4.5 text-amber-400 shrink-0 animate-bounce" />
@@ -1988,7 +1988,8 @@ export default function TournamentDetailPage() {
                   </div>
 
                   {/* Group Standings & Payouts */}
-                  <div className={`max-w-none w-full grid gap-6 md:grid-cols-2 ${tournament.hasCalcutta ? 'lg:grid-cols-3' : ''}`}>
+                  {!isFullscreen && (
+                    <div className={`max-w-none w-full grid gap-6 md:grid-cols-2 ${tournament.hasCalcutta ? 'lg:grid-cols-3' : ''}`}>
                     {/* Standings Card */}
                     <div className="glass-panel rounded-2xl p-5 shadow-xl space-y-4">
                       <h3 className="text-sm font-extrabold text-white border-b border-border pb-2 flex items-center gap-1.5">
@@ -2140,6 +2141,7 @@ export default function TournamentDetailPage() {
                     )}
 
                   </div>
+                  )}
                 </div>
               )}
             </div>
