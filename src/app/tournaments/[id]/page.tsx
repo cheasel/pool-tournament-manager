@@ -61,6 +61,27 @@ export default function TournamentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'groups' | 'knockout' | 'earnings' | 'payments'>('groups');
   const [activeGroupId, setActiveGroupId] = useState<string>('');
+  const [displayGroupId, setDisplayGroupId] = useState<string>('');
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Sync displayGroupId with activeGroupId using a transition
+  useEffect(() => {
+    if (!activeGroupId) return;
+    
+    if (!displayGroupId) {
+      setDisplayGroupId(activeGroupId);
+      return;
+    }
+
+    if (activeGroupId !== displayGroupId) {
+      setIsTransitioning(true);
+      const timer = setTimeout(() => {
+        setDisplayGroupId(activeGroupId);
+        setIsTransitioning(false);
+      }, 250); // 250ms transition duration
+      return () => clearTimeout(timer);
+    }
+  }, [activeGroupId, displayGroupId]);
   
   // Scoring Modal State
   const [scoringMatch, setScoringMatch] = useState<Match | null>(null);
@@ -144,7 +165,7 @@ export default function TournamentDetailPage() {
       clearTimeout(timer);
       window.removeEventListener('resize', updateScale);
     };
-  }, [isFullscreen, autoFit, activeTab, activeGroupId, details]);
+  }, [isFullscreen, autoFit, activeTab, displayGroupId, details]);
 
   // Apply manual scale transform when autoFit is disabled
   useEffect(() => {
@@ -179,8 +200,8 @@ export default function TournamentDetailPage() {
   }, [isSlideshowActive, isFullscreen, activeTab, details?.groups]);
 
   const qualifiedPlayerIds = React.useMemo(() => {
-    if (!details || !activeGroupId) return new Set<string>();
-    const activeGroup = details.groups.find(g => g.id === activeGroupId);
+    if (!details || !displayGroupId) return new Set<string>();
+    const activeGroup = details.groups.find(g => g.id === displayGroupId);
     if (!activeGroup) return new Set<string>();
 
     const groupMatches = details.matches.filter(m => m.groupId === activeGroup.id);
@@ -221,7 +242,7 @@ export default function TournamentDetailPage() {
         .filter(([_, stats]) => stats.status === 'Qualified')
         .map(([id]) => id)
     );
-  }, [details, activeGroupId]);
+  }, [details, displayGroupId]);
 
   const handleTogglePayment = async (
     category: 'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout',
@@ -610,8 +631,8 @@ export default function TournamentDetailPage() {
     }
   };
 
-  const activeGroup = groups.find(g => g.id === activeGroupId);
-  const activeGroupMatches = matches.filter(m => m.groupId === activeGroupId);
+  const activeGroup = groups.find(g => g.id === displayGroupId);
+  const activeGroupMatches = matches.filter(m => m.groupId === displayGroupId);
 
   // Group stander calculations
   const getGroupStandings = (group: Group) => {
@@ -2058,7 +2079,9 @@ export default function TournamentDetailPage() {
               )}
 
               {activeGroup && (
-                <div className="space-y-8">
+                <div className={`space-y-8 transition-all duration-300 ease-in-out ${
+                  isTransitioning ? 'opacity-0 translate-y-1 scale-[0.995]' : 'opacity-100 translate-y-0 scale-100'
+                }`}>
                   {/* Staggered DE Bracket Tree */}
                   <div className={`w-full overflow-x-auto pb-6 bracket-scroll-container ${autoFit ? 'autofit-active' : ''}`}>
                     <div ref={groupInnerRef} className="flex gap-4 sm:gap-6 md:gap-8 justify-between items-center py-6 px-4 bg-slate-950/40 rounded-3xl border border-white/5 p-6 min-w-[1200px] relative transition-transform duration-200">
