@@ -10,7 +10,7 @@ import PaymentsTab from './components/PaymentsTab';
 import EarningsTab from './components/EarningsTab';
 import ScoringModal from './components/ScoringModal';
 import { useAuth } from '@/context/AuthContext';
-import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
+import { Trophy, Users, Award, Calendar, Check, Edit3, X, ChevronRight, Coins, Info, RefreshCw, Maximize2, Minimize2, Play, Pause } from 'lucide-react';
 
 export default function TournamentDetailPage() {
   const { isAuthenticated, user } = useAuth();
@@ -25,6 +25,7 @@ export default function TournamentDetailPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [scale, setScale] = useState(1);
   const [autoFit, setAutoFit] = useState(true);
+  const [isSlideshowActive, setIsSlideshowActive] = useState(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -156,6 +157,26 @@ export default function TournamentDetailPage() {
       }
     }
   }, [scale, isFullscreen, autoFit, activeTab]);
+
+  // Group Stage slideshow loop effect (10 seconds)
+  useEffect(() => {
+    const groupsList = details?.groups || [];
+    if (!isSlideshowActive || !isFullscreen || activeTab !== 'groups' || groupsList.length <= 1) {
+      setIsSlideshowActive(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setActiveGroupId(currentId => {
+        const currentIndex = groupsList.findIndex(g => g.id === currentId);
+        if (currentIndex === -1) return groupsList[0]?.id || '';
+        const nextIndex = (currentIndex + 1) % groupsList.length;
+        return groupsList[nextIndex].id;
+      });
+    }, 10000); // 10 seconds loop delay
+
+    return () => clearInterval(interval);
+  }, [isSlideshowActive, isFullscreen, activeTab, details?.groups]);
 
   const qualifiedPlayerIds = React.useMemo(() => {
     if (!details || !activeGroupId) return new Set<string>();
@@ -1907,7 +1928,10 @@ export default function TournamentDetailPage() {
                   {groups.map(g => (
                     <button
                       key={g.id}
-                      onClick={() => setActiveGroupId(g.id)}
+                      onClick={() => {
+                        setActiveGroupId(g.id);
+                        setIsSlideshowActive(false);
+                      }}
                       className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                         activeGroupId === g.id
                           ? 'bg-primary text-background border-primary shadow-[0_0_12px_rgba(16,185,129,0.25)]'
@@ -1921,6 +1945,34 @@ export default function TournamentDetailPage() {
                 <div className="flex items-center gap-3">
                   {isFullscreen && (
                     <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700/60 p-1 rounded-xl shadow-lg animate-fade-in text-xs font-bold text-slate-300">
+                      {groups.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setIsSlideshowActive(prev => !prev)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer border ${
+                              isSlideshowActive
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.45)] font-extrabold animate-pulse'
+                                : 'bg-card text-muted-foreground border-border hover:text-white hover:border-slate-600'
+                            }`}
+                            title={isSlideshowActive ? 'Pause loop' : 'Start looping slideshow'}
+                          >
+                            {isSlideshowActive ? (
+                              <>
+                                <Pause className="h-3.5 w-3.5 fill-slate-950" />
+                                <span>Playing Loop</span>
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-3.5 w-3.5 fill-current" />
+                                <span>Auto Loop (10s)</span>
+                              </>
+                            )}
+                          </button>
+                          
+                          <div className="h-4 w-px bg-slate-700 mx-0.5" />
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => setAutoFit(prev => !prev)}
