@@ -19,6 +19,7 @@ interface ScoringModalProps {
   saving: boolean;
   onClose: () => void;
   onSave: () => void;
+  matchDisplayLabel?: string;
 }
 
 export default function ScoringModal({
@@ -36,6 +37,7 @@ export default function ScoringModal({
   saving,
   onClose,
   onSave,
+  matchDisplayLabel,
 }: ScoringModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm animate-fade-in">
@@ -44,7 +46,7 @@ export default function ScoringModal({
         <div className="flex justify-between items-start border-b border-border pb-4">
           <div>
             <span className="text-[10px] font-bold uppercase bg-primary/15 text-primary px-2.5 py-0.5 rounded">
-              Match #{scoringMatch.matchNumber} Scoring
+              {matchDisplayLabel || `Match #${scoringMatch.matchNumber}`} Scoring
             </span>
             <h2 className="text-xl font-bold text-white mt-2">
               Enter Final Score

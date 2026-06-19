@@ -20,7 +20,11 @@ export default function TournamentDetailPage() {
 
   const groupBracketRef = React.useRef<HTMLDivElement>(null);
   const knockoutBracketRef = React.useRef<HTMLDivElement>(null);
+  const groupInnerRef = React.useRef<HTMLDivElement>(null);
+  const knockoutInnerRef = React.useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [autoFit, setAutoFit] = useState(true);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -81,6 +85,77 @@ export default function TournamentDetailPage() {
   const [paymentCategory, setPaymentCategory] = useState<'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout'>('entry');
   const [swapSourcePlayer, setSwapSourcePlayer] = useState<{ playerId: string; name: string } | null>(null);
   const [swapKnockoutSourcePlayer, setSwapKnockoutSourcePlayer] = useState<{ playerId: string; name: string } | null>(null);
+
+  // Handle auto-scaling for fullscreen view
+  useEffect(() => {
+    if (!isFullscreen) {
+      setScale(1);
+      if (groupInnerRef.current) {
+        groupInnerRef.current.style.transform = '';
+        groupInnerRef.current.style.transformOrigin = '';
+        groupInnerRef.current.style.width = '';
+      }
+      if (knockoutInnerRef.current) {
+        knockoutInnerRef.current.style.transform = '';
+        knockoutInnerRef.current.style.transformOrigin = '';
+        knockoutInnerRef.current.style.width = '';
+      }
+      return;
+    }
+
+    const updateScale = () => {
+      if (!autoFit) return;
+
+      const innerElement = activeTab === 'groups' ? groupInnerRef.current : knockoutInnerRef.current;
+      const outerElement = activeTab === 'groups' ? groupBracketRef.current : knockoutBracketRef.current;
+
+      if (!innerElement || !outerElement) return;
+
+      // Temporary reset to get accurate natural dimensions
+      innerElement.style.transform = 'none';
+      innerElement.style.width = 'max-content';
+
+      const innerWidth = innerElement.scrollWidth;
+      const innerHeight = innerElement.scrollHeight;
+
+      // Recalculate available space in fullscreen
+      const padX = 48; // Account for container padding (1.5rem on left & right)
+      const headerHeight = 90; // Account for tabs and fullscreen toolbar height
+      const availWidth = window.innerWidth - padX;
+      const availHeight = window.innerHeight - headerHeight;
+
+      const scaleX = availWidth / innerWidth;
+      const scaleY = availHeight / innerHeight;
+      
+      const fitScale = Math.min(scaleX, scaleY);
+      const clampedScale = Math.max(0.35, Math.min(fitScale, 1.25));
+
+      setScale(clampedScale);
+      innerElement.style.transform = `scale(${clampedScale})`;
+      innerElement.style.transformOrigin = 'top center';
+      innerElement.style.width = '';
+    };
+
+    const timer = setTimeout(updateScale, 100);
+
+    window.addEventListener('resize', updateScale);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [isFullscreen, autoFit, activeTab, activeGroupId, details]);
+
+  // Apply manual scale transform when autoFit is disabled
+  useEffect(() => {
+    if (isFullscreen && !autoFit) {
+      const innerElement = activeTab === 'groups' ? groupInnerRef.current : knockoutInnerRef.current;
+      if (innerElement) {
+        innerElement.style.transform = `scale(${scale})`;
+        innerElement.style.transformOrigin = 'top center';
+        innerElement.style.width = '';
+      }
+    }
+  }, [scale, isFullscreen, autoFit, activeTab]);
 
   const qualifiedPlayerIds = React.useMemo(() => {
     if (!details || !activeGroupId) return new Set<string>();
@@ -585,6 +660,16 @@ export default function TournamentDetailPage() {
   const knockoutMatches = matches.filter(m => m.roundType === 'knockout');
   const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(m => m.roundNumber)) : 0;
 
+  const getGlobalMatchNumber = (match: Match) => {
+    if (match.roundType !== 'knockout') return match.matchNumber;
+    let globalNum = 0;
+    for (let r = 1; r < match.roundNumber; r++) {
+      globalNum += Math.pow(2, maxKnockoutRound - r);
+    }
+    globalNum += match.matchNumber;
+    return globalNum;
+  };
+
   const renderBallIcon = (num: number) => {
     let style: React.CSSProperties = {};
     let textColor = 'text-white';
@@ -646,13 +731,13 @@ export default function TournamentDetailPage() {
       >
         {/* Match Header info */}
         <div className="flex justify-between items-center text-[10px] text-muted-foreground border-b border-border/40 pb-1.5 mb-2">
-          <span className="font-extrabold uppercase text-primary/80">Match #{match.matchNumber}</span>
+          <span className="font-extrabold uppercase text-primary/80">Match #{getGlobalMatchNumber(match)}</span>
           <div className="flex items-center gap-1.5 font-medium">
             {match.roundType === 'knockout' && isClickable && !isCompleted && (
               <button
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if (confirm(`Recalculate handicap targets for Match #${match.matchNumber}?`)) {
+                  if (confirm(`Recalculate handicap targets for Match #${getGlobalMatchNumber(match)}?`)) {
                     try {
                       const updated = await db.recalculateMatchHandicap(id, match.id);
                       setDetails(updated);
@@ -1833,14 +1918,63 @@ export default function TournamentDetailPage() {
                     </button>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={toggleGroupFullscreen}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer"
-                >
-                  {isFullscreen ? <Minimize2 className="h-4 w-4 text-primary" /> : <Maximize2 className="h-4 w-4 text-primary" />}
-                  {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Bracket'}
-                </button>
+                <div className="flex items-center gap-3">
+                  {isFullscreen && (
+                    <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700/60 p-1 rounded-xl shadow-lg animate-fade-in text-xs font-bold text-slate-300">
+                      <button
+                        type="button"
+                        onClick={() => setAutoFit(prev => !prev)}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer border ${
+                          autoFit
+                            ? 'bg-primary text-background border-primary shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                            : 'bg-card text-muted-foreground border-border hover:text-white'
+                        }`}
+                      >
+                        Auto-Fit
+                      </button>
+                      
+                      <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAutoFit(false);
+                          setScale(s => Math.max(0.35, s - 0.05));
+                        }}
+                        disabled={scale <= 0.35}
+                        className="h-8 w-8 rounded-lg bg-card border border-border hover:bg-border text-white flex items-center justify-center font-extrabold cursor-pointer disabled:opacity-40 transition-colors"
+                        title="Zoom Out"
+                      >
+                        -
+                      </button>
+                      
+                      <span className="w-12 text-center text-[11px] font-mono font-black text-white shrink-0">
+                        {Math.round(scale * 100)}%
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAutoFit(false);
+                          setScale(s => Math.min(1.25, s + 0.05));
+                        }}
+                        disabled={scale >= 1.25}
+                        className="h-8 w-8 rounded-lg bg-card border border-border hover:bg-border text-white flex items-center justify-center font-extrabold cursor-pointer disabled:opacity-40 transition-colors"
+                        title="Zoom In"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleGroupFullscreen}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer"
+                  >
+                    {isFullscreen ? <Minimize2 className="h-4 w-4 text-primary" /> : <Maximize2 className="h-4 w-4 text-primary" />}
+                    {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Bracket'}
+                  </button>
+                </div>
               </div>
 
               {/* Swap Warning Banner */}
@@ -1874,8 +2008,8 @@ export default function TournamentDetailPage() {
               {activeGroup && (
                 <div className="space-y-8">
                   {/* Staggered DE Bracket Tree */}
-                  <div className="w-full overflow-x-auto pb-6">
-                    <div className="flex gap-4 sm:gap-6 md:gap-8 justify-between items-center py-6 px-4 bg-slate-950/40 rounded-3xl border border-white/5 p-6 min-w-[1200px] relative">
+                  <div className={`w-full overflow-x-auto pb-6 bracket-scroll-container ${autoFit ? 'autofit-active' : ''}`}>
+                    <div ref={groupInnerRef} className="flex gap-4 sm:gap-6 md:gap-8 justify-between items-center py-6 px-4 bg-slate-950/40 rounded-3xl border border-white/5 p-6 min-w-[1200px] relative transition-transform duration-200">
                       
                       {/* Glowing Group Badge in Background */}
                       <div className="absolute top-4 left-4 z-10">
@@ -2144,6 +2278,26 @@ export default function TournamentDetailPage() {
                   )}
                 </div>
               )}
+              {/* Scoring Modal for Group Stage (Fullscreen compatible) */}
+              {scoringMatch && (
+                <ScoringModal
+                  scoringMatch={scoringMatch}
+                  tournament={tournament}
+                  getPlayer={getPlayer}
+                  score1={score1}
+                  setScore1={setScore1}
+                  score2={score2}
+                  setScore2={setScore2}
+                  stats1={stats1}
+                  setStats1={setStats1}
+                  stats2={stats2}
+                  setStats2={setStats2}
+                  saving={saving}
+                  onClose={() => setScoringMatch(null)}
+                  onSave={handleSaveScore}
+                  matchDisplayLabel={`Match #${scoringMatch.matchNumber}`}
+                />
+              )}
             </div>
           )}
         </>
@@ -2162,7 +2316,54 @@ export default function TournamentDetailPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-3 items-center">
+                {isFullscreen && (
+                  <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700/60 p-1 rounded-xl shadow-lg animate-fade-in text-xs font-bold text-slate-300">
+                    <button
+                      type="button"
+                      onClick={() => setAutoFit(prev => !prev)}
+                      className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer border ${
+                        autoFit
+                          ? 'bg-primary text-background border-primary shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                          : 'bg-card text-muted-foreground border-border hover:text-white'
+                      }`}
+                    >
+                      Auto-Fit
+                    </button>
+                    
+                    <div className="h-4 w-px bg-slate-700 mx-1" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAutoFit(false);
+                        setScale(s => Math.max(0.35, s - 0.05));
+                      }}
+                      disabled={scale <= 0.35}
+                      className="h-8 w-8 rounded-lg bg-card border border-border hover:bg-border text-white flex items-center justify-center font-extrabold cursor-pointer disabled:opacity-40 transition-colors"
+                      title="Zoom Out"
+                    >
+                      -
+                    </button>
+                    
+                    <span className="w-12 text-center text-[11px] font-mono font-black text-white shrink-0">
+                      {Math.round(scale * 100)}%
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAutoFit(false);
+                        setScale(s => Math.min(1.25, s + 0.05));
+                      }}
+                      disabled={scale >= 1.25}
+                      className="h-8 w-8 rounded-lg bg-card border border-border hover:bg-border text-white flex items-center justify-center font-extrabold cursor-pointer disabled:opacity-40 transition-colors"
+                      title="Zoom In"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={toggleKnockoutFullscreen}
@@ -2173,35 +2374,115 @@ export default function TournamentDetailPage() {
                 </button>
               </div>
 
-              <div className="overflow-x-auto pb-4">
-                <div className="flex gap-8 min-w-[800px] justify-between p-6 bg-slate-950/40 rounded-3xl border border-white/5">
-                  {Array.from({ length: maxKnockoutRound }).map((_, rIdx) => {
-                    const roundNum = rIdx + 1;
-                    const roundMatches = knockoutMatches.filter(m => m.roundNumber === roundNum);
-                    
-                    let roundName = `Round of ${roundMatches.length * 2}`;
-                    if (roundMatches.length === 4) roundName = 'Quarterfinals';
-                    if (roundMatches.length === 2) roundName = 'Semifinals';
-                    if (roundMatches.length === 1) roundName = 'Finals';
+              <div className={`overflow-x-auto pb-4 bracket-scroll-container ${autoFit ? 'autofit-active' : ''}`}>
+                <div ref={knockoutInnerRef} className="flex gap-8 items-stretch justify-center p-6 bg-slate-950/40 rounded-3xl border border-white/5 w-fit mx-auto transition-transform duration-200">
+                  {(() => {
+                    if (maxKnockoutRound <= 1) {
+                      // Only 1 round, render it directly
+                      const roundMatches = knockoutMatches.filter(m => m.roundNumber === 1);
+                      return (
+                        <div className="w-[200px] sm:w-[220px] md:w-[240px] flex flex-col gap-4 shrink-0 mx-auto">
+                          <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest border-b border-border/40 pb-1.5 text-center shrink-0">
+                            Finals
+                          </p>
+                          <div className="flex-1 flex flex-col justify-around min-h-[250px]">
+                            {roundMatches.map(m => (
+                              <div key={m.id} className="py-2">
+                                {renderMatchCard(m)}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const renderColumn = (roundNum: number, side: 'left' | 'right') => {
+                      const roundMatches = knockoutMatches.filter(m => m.roundNumber === roundNum);
+                      const totalMatchesInRound = roundMatches.length;
+                      
+                      // Filter matches for the specific side
+                      const sideMatches = roundMatches.filter(m => {
+                        if (side === 'left') {
+                          return m.matchNumber <= Math.ceil(totalMatchesInRound / 2);
+                        } else {
+                          return m.matchNumber > Math.ceil(totalMatchesInRound / 2);
+                        }
+                      });
+
+                      if (sideMatches.length === 0) return null;
+
+                      let roundName = `Round of ${totalMatchesInRound * 2}`;
+                      if (totalMatchesInRound === 4) roundName = 'Quarterfinals';
+                      if (totalMatchesInRound === 2) roundName = 'Semifinals';
+                      if (totalMatchesInRound === 1) roundName = 'Finals';
+
+                      return (
+                        <div key={`${roundNum}-${side}`} className="w-[200px] sm:w-[220px] md:w-[240px] flex flex-col gap-4 shrink-0">
+                          <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest border-b border-border/40 pb-1.5 text-center shrink-0">
+                            {roundName}
+                          </p>
+                          <div className="flex-1 flex flex-col justify-around min-h-[400px]">
+                            {sideMatches.map(m => (
+                              <div key={m.id} className="py-2">
+                                {renderMatchCard(m)}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    const leftRoundIndices = Array.from({ length: maxKnockoutRound - 1 }, (_, i) => i + 1);
+                    const rightRoundIndices = [...leftRoundIndices].reverse();
+                    const finalsMatch = knockoutMatches.find(m => m.roundNumber === maxKnockoutRound);
 
                     return (
-                      <div key={roundNum} className="flex-1 space-y-4">
-                        <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest border-b border-border/40 pb-1.5">
-                          {roundName}
-                        </p>
-                        <div className="space-y-6 flex flex-col justify-around h-full min-h-[400px]">
-                          {roundMatches.map(m => (
-                            <div key={m.id} className="py-2">
-                              {renderMatchCard(m)}
+                      <>
+                        {/* Left Side Columns (Outer to Inner) */}
+                        {leftRoundIndices.map(rNum => renderColumn(rNum, 'left'))}
+
+                        {/* Center Column (Finals) */}
+                        {finalsMatch && (
+                          <div key="finals-column" className="w-[200px] sm:w-[220px] md:w-[240px] flex flex-col gap-4 shrink-0">
+                            <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest border-b border-border/40 pb-1.5 text-center shrink-0">
+                              Finals
+                            </p>
+                            <div className="flex-1 flex flex-col justify-around min-h-[400px]">
+                              <div className="py-2">
+                                {renderMatchCard(finalsMatch)}
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </div>
+                        )}
+
+                        {/* Right Side Columns (Inner to Outer) */}
+                        {rightRoundIndices.map(rNum => renderColumn(rNum, 'right'))}
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
               </div>
             </div>
+          )}
+          {/* Scoring Modal for Knockout Stage (Fullscreen compatible) */}
+          {scoringMatch && (
+            <ScoringModal
+              scoringMatch={scoringMatch}
+              tournament={tournament}
+              getPlayer={getPlayer}
+              score1={score1}
+              setScore1={setScore1}
+              score2={score2}
+              setScore2={setScore2}
+              stats1={stats1}
+              setStats1={setStats1}
+              stats2={stats2}
+              setStats2={setStats2}
+              saving={saving}
+              onClose={() => setScoringMatch(null)}
+              onSave={handleSaveScore}
+              matchDisplayLabel={`Match #${getGlobalMatchNumber(scoringMatch)}`}
+            />
           )}
         </div>
       )}
@@ -2227,25 +2508,7 @@ export default function TournamentDetailPage() {
         />
       )}
 
-      {/* Scoring Modal */}
-      {scoringMatch && (
-        <ScoringModal
-          scoringMatch={scoringMatch}
-          tournament={tournament}
-          getPlayer={getPlayer}
-          score1={score1}
-          setScore1={setScore1}
-          score2={score2}
-          setScore2={setScore2}
-          stats1={stats1}
-          setStats1={setStats1}
-          stats2={stats2}
-          setStats2={setStats2}
-          saving={saving}
-          onClose={() => setScoringMatch(null)}
-          onSave={handleSaveScore}
-        />
-      )}
+
     </div>
   );
 }

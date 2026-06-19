@@ -88,11 +88,26 @@ body {
 /* Fullscreen styling for brackets */
 .bracket-fullscreen-container:fullscreen {
   background-color: #0b0f19 !important;
-  padding: 3rem 2rem !important;
+  padding: 1.5rem !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: center !important;
-  overflow: auto !important;
-  min-height: 100vh !important;
+  height: 100vh !important;
   width: 100% !important;
+  overflow: hidden !important;
 }
+
+.bracket-fullscreen-container:fullscreen .bracket-scroll-container {
+  flex: 1 !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  overflow: auto !important;
+}
+
+.bracket-fullscreen-container:fullscreen .bracket-scroll-container.autofit-active {
+  overflow: hidden !important;
+}
+
+
+
