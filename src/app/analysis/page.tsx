@@ -554,10 +554,10 @@ export default function AnalysisPage() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <Link
-                            href={`/players/${stat.player.id}`}
+                            href={`/analysis/players/${stat.player.id}`}
                             className="text-xs text-muted-foreground hover:text-white transition-colors flex items-center gap-1"
                           >
-                            History
+                            Analyze
                             <ChevronRight className="h-3 w-3" />
                           </Link>
                           <button
