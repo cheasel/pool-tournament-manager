@@ -47,6 +47,12 @@ export default function Header() {
             {isAuthenticated && user?.role === 'super_admin' && (
               <>
                 <Link
+                  href="/analysis"
+                  className="text-sm font-medium text-muted-foreground hover:text-white transition-colors duration-200"
+                >
+                  Analysis
+                </Link>
+                <Link
                   href="/handicaps"
                   className="text-sm font-medium text-muted-foreground hover:text-white transition-colors duration-200"
                 >

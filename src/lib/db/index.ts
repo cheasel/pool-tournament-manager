@@ -61,6 +61,7 @@ export interface DatabaseAdapter {
   getHandicapRaces(): Promise<HandicapRaceSetting[]>;
   updateHandicapRaces(races: HandicapRaceSetting[]): Promise<HandicapRaceSetting[]>;
   recalculateMatchHandicap(tournamentId: string, matchId: string): Promise<TournamentDetails>;
+  getAllMatches(): Promise<Match[]>;
 }
 
 // ----------------------------------------------------
@@ -864,6 +865,10 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
     const updatedDetails = await this.getTournamentDetails(tournamentId);
     if (!updatedDetails) throw new Error('Failed to retrieve updated details');
     return updatedDetails;
+  }
+
+  async getAllMatches(): Promise<Match[]> {
+    return this.getStorageItem<Match[]>('ptm_matches', []);
   }
 }
 
@@ -2085,6 +2090,40 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
     } catch (e) {
       console.warn('Supabase recalculateMatchHandicap failed, falling back to LocalStorage', e);
       return localStorageAdapter.recalculateMatchHandicap(tournamentId, matchId);
+    }
+  }
+
+  async getAllMatches(): Promise<Match[]> {
+    try {
+      const { data, error } = await this.client
+        .from('matches')
+        .select('*');
+      if (error) throw error;
+      return (data || []).map((m: any) => ({
+        id: m.id,
+        tournamentId: m.tournament_id,
+        groupId: m.group_id,
+        roundType: m.round_type,
+        roundNumber: m.round_number,
+        matchNumber: m.match_number,
+        player1Id: m.player1_id,
+        player2Id: m.player2_id,
+        player1Score: m.player1_score,
+        player2Score: m.player2_score,
+        player1Target: m.player1_target,
+        player2Target: m.player2_target,
+        player1SpottedBalls: m.player1_spotted_balls || [],
+        player2SpottedBalls: m.player2_spotted_balls || [],
+        status: m.status,
+        winnerId: m.winner_id,
+        player1Stats: m.player1_stats || {},
+        player2Stats: m.player2_stats || {},
+        createdAt: m.created_at,
+        handicapRaceStyle: m.handicap_race_style || 'default',
+      }));
+    } catch (e) {
+      console.warn('Supabase getAllMatches failed, falling back to LocalStorage', e);
+      return localStorageAdapter.getAllMatches();
     }
   }
 }
