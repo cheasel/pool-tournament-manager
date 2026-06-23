@@ -710,7 +710,12 @@ export default function TournamentDetailPage() {
   };
 
 
-  const knockoutMatches = matches.filter(m => m.roundType === 'knockout');
+  const knockoutMatches = matches
+    .filter(m => m.roundType === 'knockout')
+    .sort((a, b) => {
+      if (a.roundNumber !== b.roundNumber) return a.roundNumber - b.roundNumber;
+      return a.matchNumber - b.matchNumber;
+    });
   const maxKnockoutRound = knockoutMatches.length > 0 ? Math.max(...knockoutMatches.map(m => m.roundNumber)) : 0;
 
   const getGlobalMatchNumber = (match: Match) => {

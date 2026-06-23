@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Player, Tournament, Group, Match, MatchStats, TournamentDetails, CalcuttaBid, HandicapHistoryEntry, HandicapRaceSetting } from '../../types';
-import { initializeGroupMatches, getGroupQualifiers, seedSingleElimination, advanceDoubleEliminationMatch, advanceKnockoutMatches, resolveByeMatches } from '../bracket';
+import { initializeGroupMatches, getGroupQualifiers, seedSingleElimination, advanceDoubleEliminationMatch, advanceKnockoutMatches, resolveByeMatches, healKnockoutMatches } from '../bracket';
 import { calculateMatchHandicap } from '../handicap';
 
 export interface DatabaseAdapter {
@@ -202,7 +202,18 @@ class LocalStorageAdapterImpl implements DatabaseAdapter {
         seenMatches.set(m.id, m);
       }
     }
-    const matches = Array.from(seenMatches.values());
+    const initialMatches = Array.from(seenMatches.values());
+    const playersMap = allPlayers.reduce((acc, p) => {
+      acc[p.id] = p;
+      return acc;
+    }, {} as Record<string, Player>);
+
+    const { healedMatches, changed } = healKnockoutMatches(initialMatches, tournament, playersMap);
+    if (changed) {
+      const allSavedMatches = this.getStorageItem<Match[]>('ptm_matches', []).filter(m => m.tournamentId !== id);
+      this.setStorageItem('ptm_matches', [...allSavedMatches, ...healedMatches]);
+    }
+    const matches = healedMatches;
 
     // Extract all player IDs associated with this tournament (from groups and matches)
     const activePlayerIds = new Set<string>();
@@ -1042,9 +1053,15 @@ class SupabaseAdapterImpl implements DatabaseAdapter {
           seenMatches.set(m.id, m);
         }
       }
-      const matches = Array.from(seenMatches.values());
-
+      const initialMatches = Array.from(seenMatches.values());
       const allPlayers = await this.getPlayers();
+      const playersMap = allPlayers.reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {} as Record<string, Player>);
+
+      const { healedMatches } = healKnockoutMatches(initialMatches, tournament, playersMap);
+      const matches = healedMatches;
       const activePlayerIds = new Set<string>();
       groups.forEach(g => g.playerIds.forEach(pid => activePlayerIds.add(pid)));
       matches.forEach(m => {

@@ -544,8 +544,6 @@ export function advanceKnockoutMatches(
   for (let r = 1; r < maxRound; r++) {
     const roundMatches = seMatches.filter(m => m.roundNumber === r);
     for (const m of roundMatches) {
-      if (m.status !== 'completed' || !m.winnerId) continue;
-
       const nextRoundNum = r + 1;
       const nextMatchNum = Math.ceil(m.matchNumber / 2);
       const isPlayer1Slot = m.matchNumber % 2 !== 0;
@@ -556,13 +554,28 @@ export function advanceKnockoutMatches(
 
       if (destMatch) {
         destMatch.handicapRaceStyle = m.handicapRaceStyle; // Propagate style
+        const expectedPlayerId = (m.status === 'completed' && m.winnerId) ? m.winnerId : '';
         const currentSlotId = isPlayer1Slot ? destMatch.player1Id : destMatch.player2Id;
-        if (currentSlotId !== m.winnerId) {
+
+        if (currentSlotId !== expectedPlayerId) {
           if (isPlayer1Slot) {
-            destMatch.player1Id = m.winnerId;
+            destMatch.player1Id = expectedPlayerId;
           } else {
-            destMatch.player2Id = m.winnerId;
+            destMatch.player2Id = expectedPlayerId;
           }
+
+          // Since the player in destMatch changed, reset destMatch to scheduled/incomplete
+          destMatch.status = 'scheduled';
+          destMatch.winnerId = undefined;
+          destMatch.player1Score = 0;
+          destMatch.player2Score = 0;
+          destMatch.player1Stats = { breakAndRun: 0, tableRun: 0 };
+          destMatch.player2Stats = { breakAndRun: 0, tableRun: 0 };
+          destMatch.player1Target = 1;
+          destMatch.player2Target = 1;
+          destMatch.player1SpottedBalls = [];
+          destMatch.player2SpottedBalls = [];
+
           updateMatchTargets(destMatch, playersMap, gameType);
           changed = true;
         }
@@ -580,3 +593,120 @@ export function advanceKnockoutMatches(
 
   return changed;
 }
+
+/**
+ * Heals a knockout bracket by reconstructing any missing placeholder matches in the tree.
+ * Correctly infers player IDs, completed status, winner IDs, scores, and handicap targets.
+ */
+export function healKnockoutMatches(
+  matches: Match[],
+  tournament: Tournament,
+  playersMap: Record<string, Player>
+): { healedMatches: Match[]; changed: boolean } {
+  const seMatches = matches.filter(m => m.roundType === 'knockout');
+  if (seMatches.length === 0) return { healedMatches: matches, changed: false };
+
+  const maxRound = Math.max(...seMatches.map(m => m.roundNumber));
+  let changed = false;
+  const updatedMatches = [...matches];
+
+  for (let r = 1; r <= maxRound; r++) {
+    const expectedCount = Math.pow(2, maxRound - r);
+    for (let mNum = 1; mNum <= expectedCount; mNum++) {
+      const matchIndex = updatedMatches.findIndex(
+        m => m.tournamentId === tournament.id && m.roundType === 'knockout' && m.roundNumber === r && m.matchNumber === mNum
+      );
+
+      if (matchIndex === -1) {
+        const hasPrefix = seMatches.some(m => m.id.startsWith(`${tournament.id}_`));
+        const matchId = hasPrefix ? `${tournament.id}_se_r${r}_m${mNum}` : `se_r${r}_m${mNum}`;
+
+        let p1Id = '';
+        let p2Id = '';
+        if (r > 1) {
+          const prevMatch1 = updatedMatches.find(
+            m => m.tournamentId === tournament.id && m.roundType === 'knockout' && m.roundNumber === r - 1 && m.matchNumber === 2 * mNum - 1
+          );
+          const prevMatch2 = updatedMatches.find(
+            m => m.tournamentId === tournament.id && m.roundType === 'knockout' && m.roundNumber === r - 1 && m.matchNumber === 2 * mNum
+          );
+          p1Id = (prevMatch1?.status === 'completed' && prevMatch1.winnerId) ? prevMatch1.winnerId : '';
+          p2Id = (prevMatch2?.status === 'completed' && prevMatch2.winnerId) ? prevMatch2.winnerId : '';
+        }
+
+        let winnerId: string | undefined = undefined;
+        let status: 'scheduled' | 'completed' = 'scheduled';
+        let p1Score = 0;
+        let p2Score = 0;
+
+        const nextRoundNum = r + 1;
+        const nextMatchNum = Math.ceil(mNum / 2);
+        const isPlayer1Slot = mNum % 2 !== 0;
+
+        const nextMatch = updatedMatches.find(
+          m => m.tournamentId === tournament.id && m.roundType === 'knockout' && m.roundNumber === nextRoundNum && m.matchNumber === nextMatchNum
+        );
+
+        if (nextMatch) {
+          const nextPlayerId = isPlayer1Slot ? nextMatch.player1Id : nextMatch.player2Id;
+          if (nextPlayerId) {
+            winnerId = nextPlayerId;
+            status = 'completed';
+          }
+        }
+
+        let p1Target = 1;
+        let p2Target = 1;
+        let p1Spotted: number[] = [];
+        let p2Spotted: number[] = [];
+
+        const p1Obj = p1Id ? playersMap[p1Id] : null;
+        const p2Obj = p2Id ? playersMap[p2Id] : null;
+
+        if (p1Obj && p2Obj) {
+          const hc = calculateMatchHandicap(p1Obj, p2Obj, tournament.gameType, tournament.handicapRaceStyle);
+          p1Target = hc.player1Target;
+          p2Target = hc.player2Target;
+          p1Spotted = hc.player1SpottedBalls;
+          p2Spotted = hc.player2SpottedBalls;
+        }
+
+        if (status === 'completed' && winnerId) {
+          if (winnerId === p1Id) {
+            p1Score = p1Target;
+            p2Score = 0;
+          } else if (winnerId === p2Id) {
+            p1Score = 0;
+            p2Score = p2Target;
+          }
+        }
+
+        const healedMatch: Match = {
+          id: matchId,
+          tournamentId: tournament.id,
+          roundType: 'knockout',
+          roundNumber: r,
+          matchNumber: mNum,
+          player1Id: p1Id,
+          player2Id: p2Id,
+          player1Score: p1Score,
+          player2Score: p2Score,
+          player1Target: p1Target,
+          player2Target: p2Target,
+          player1SpottedBalls: p1Spotted,
+          player2SpottedBalls: p2Spotted,
+          status,
+          winnerId,
+          createdAt: new Date().toISOString(),
+          handicapRaceStyle: tournament.handicapRaceStyle,
+        };
+
+        updatedMatches.push(healedMatch);
+        changed = true;
+      }
+    }
+  }
+
+  return { healedMatches: updatedMatches, changed };
+}
+
