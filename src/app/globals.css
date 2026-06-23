@@ -109,5 +109,16 @@ body {
   overflow: hidden !important;
 }
 
+/* Fullscreen styling for Calcutta auction page */
+.calcutta-fullscreen-container:fullscreen {
+  background-color: #0b0f19 !important;
+  padding: 2rem 1.5rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  width: 100% !important;
+  overflow-y: auto !important;
+}
+
 
 

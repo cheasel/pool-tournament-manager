@@ -20,6 +20,7 @@ export default function TournamentDetailPage() {
 
   const groupBracketRef = React.useRef<HTMLDivElement>(null);
   const knockoutBracketRef = React.useRef<HTMLDivElement>(null);
+  const calcuttaRef = React.useRef<HTMLDivElement>(null);
   const groupInnerRef = React.useRef<HTMLDivElement>(null);
   const knockoutInnerRef = React.useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -50,6 +51,16 @@ export default function TournamentDetailPage() {
   const toggleKnockoutFullscreen = () => {
     if (!document.fullscreenElement) {
       knockoutBracketRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error enabling full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const toggleCalcuttaFullscreen = () => {
+    if (!document.fullscreenElement) {
+      calcuttaRef.current?.requestFullscreen().catch(err => {
         console.error(`Error enabling full-screen mode: ${err.message}`);
       });
     } else {
@@ -1205,7 +1216,28 @@ export default function TournamentDetailPage() {
 
       {tournament.status === 'draft' && tournament.hasCalcutta ? (
         /* Main Calcutta Auction Screen Layout */
-        <div className="w-full space-y-6 lg:-mx-6 xl:-mx-8 lg:w-auto">
+        <div ref={calcuttaRef} className="w-full space-y-6 lg:-mx-6 xl:-mx-8 lg:w-auto calcutta-fullscreen-container">
+          {/* Calcutta Page Header with Fullscreen Toggle */}
+          <div className="flex items-center justify-between border-b border-border/40 pb-4">
+            <div>
+              <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+                <Coins className="h-5 w-5 text-primary animate-pulse" />
+                Calcutta Player Auction
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {tournament.name} • {players.filter(p => !p.isBye).length} Players
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleCalcuttaFullscreen}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-card border border-border px-4 py-2 text-xs font-bold text-white hover:bg-border/60 hover:text-white transition-all cursor-pointer shadow-sm"
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4 text-primary" /> : <Maximize2 className="h-4 w-4 text-primary" />}
+              {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            </button>
+          </div>
+
           {/* If the auction has NOT started, show the intro panel in full width */}
           {!auctionStarted ? (
             <div className="max-w-xl mx-auto glass-panel rounded-2xl p-8 shadow-xl text-center space-y-6 border border-border/40 py-12">
