@@ -45,8 +45,12 @@ function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
       losses++;
     }
 
-    if (stats?.breakAndRun) breakAndRuns++;
-    if (stats?.tableRun) tableRuns++;
+    if (stats?.breakAndRun) {
+      breakAndRuns += typeof stats.breakAndRun === 'number' ? stats.breakAndRun : (stats.breakAndRun ? 1 : 0);
+    }
+    if (stats?.tableRun) {
+      tableRuns += typeof stats.tableRun === 'number' ? stats.tableRun : (stats.tableRun ? 1 : 0);
+    }
   });
 
   const totalMatches = wins + losses;

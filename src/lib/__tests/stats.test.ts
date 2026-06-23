@@ -130,4 +130,27 @@ describe('Player Statistics Aggregator', () => {
     expect(stats.gameBreakdown['8-Ball'].matches.played).toBe(0);
     expect(stats.gameBreakdown['8-Ball'].matches.won).toBe(0);
   });
+
+  it('should successfully calculate multiple runs in a match when statistics values are integers', () => {
+    const mockTournamentsWithMultiRuns: TournamentDetails[] = [
+      {
+        ...mockTournaments[0],
+        matches: [
+          {
+            ...mockTournaments[0].matches[0],
+            player1Stats: { breakAndRun: 3, tableRun: 2 },
+            player2Stats: { breakAndRun: 1, tableRun: 4 }
+          }
+        ]
+      }
+    ];
+
+    const statsA = getPlayerStats(playerA, mockTournamentsWithMultiRuns);
+    expect(statsA.runs.breakAndRun).toBe(3);
+    expect(statsA.runs.tableRun).toBe(2);
+
+    const statsB = getPlayerStats(playerB, mockTournamentsWithMultiRuns);
+    expect(statsB.runs.breakAndRun).toBe(1);
+    expect(statsB.runs.tableRun).toBe(4);
+  });
 });

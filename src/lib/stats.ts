@@ -199,12 +199,14 @@ export function getPlayerStats(
       // Check run stats
       const stats = isP1 ? m.player1Stats : m.player2Stats;
       if (stats?.breakAndRun) {
-        breakAndRuns++;
-        gameBreakdown[gType].runs.breakAndRun++;
+        const count = typeof stats.breakAndRun === 'number' ? stats.breakAndRun : (stats.breakAndRun ? 1 : 0);
+        breakAndRuns += count;
+        gameBreakdown[gType].runs.breakAndRun += count;
       }
       if (stats?.tableRun) {
-        tableRuns++;
-        gameBreakdown[gType].runs.tableRun++;
+        const count = typeof stats.tableRun === 'number' ? stats.tableRun : (stats.tableRun ? 1 : 0);
+        tableRuns += count;
+        gameBreakdown[gType].runs.tableRun += count;
       }
     });
   }

@@ -121,26 +121,65 @@ export default function ScoringModal({
             </div>
             <p className="text-[10px] text-muted-foreground">Target: Race to {scoringMatch.player1Target}</p>
             
-            {/* Stats Checkboxes P1 */}
-            <div className="pt-2 text-left space-y-2 border-t border-border/40 mt-2">
-              <label className="flex items-center gap-2 text-[11px] text-muted-foreground select-none cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!!stats1.breakAndRun}
-                  onChange={e => setStats1(prev => ({ ...prev, breakAndRun: e.target.checked }))}
-                  className="rounded accent-primary bg-background border-border"
-                />
-                Break & Run
-              </label>
-              <label className="flex items-center gap-2 text-[11px] text-muted-foreground select-none cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!!stats1.tableRun}
-                  onChange={e => setStats1(prev => ({ ...prev, tableRun: e.target.checked }))}
-                  className="rounded accent-primary bg-background border-border"
-                />
-                Table Run
-              </label>
+            {/* Stats Counters P1 */}
+            <div className="pt-3 text-left space-y-3 border-t border-border/40 mt-2">
+              <div className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="text-muted-foreground font-bold">Break & Run:</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setStats1(prev => ({ 
+                      ...prev, 
+                      breakAndRun: Math.max(0, (typeof prev.breakAndRun === 'number' ? prev.breakAndRun : (prev.breakAndRun ? 1 : 0)) - 1) 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="text-white font-mono font-bold w-4 text-center">
+                    {typeof stats1.breakAndRun === 'number' ? stats1.breakAndRun : (stats1.breakAndRun ? 1 : 0)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStats1(prev => ({ 
+                      ...prev, 
+                      breakAndRun: (typeof prev.breakAndRun === 'number' ? prev.breakAndRun : (prev.breakAndRun ? 1 : 0)) + 1 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="text-muted-foreground font-bold">Table Run:</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setStats1(prev => ({ 
+                      ...prev, 
+                      tableRun: Math.max(0, (typeof prev.tableRun === 'number' ? prev.tableRun : (prev.tableRun ? 1 : 0)) - 1) 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="text-white font-mono font-bold w-4 text-center">
+                    {typeof stats1.tableRun === 'number' ? stats1.tableRun : (stats1.tableRun ? 1 : 0)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStats1(prev => ({ 
+                      ...prev, 
+                      tableRun: (typeof prev.tableRun === 'number' ? prev.tableRun : (prev.tableRun ? 1 : 0)) + 1 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -166,26 +205,65 @@ export default function ScoringModal({
             </div>
             <p className="text-[10px] text-muted-foreground">Target: Race to {scoringMatch.player2Target}</p>
 
-            {/* Stats Checkboxes P2 */}
-            <div className="pt-2 text-left space-y-2 border-t border-border/40 mt-2">
-              <label className="flex items-center gap-2 text-[11px] text-muted-foreground select-none cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!!stats2.breakAndRun}
-                  onChange={e => setStats2(prev => ({ ...prev, breakAndRun: e.target.checked }))}
-                  className="rounded accent-primary bg-background border-border"
-                />
-                Break & Run
-              </label>
-              <label className="flex items-center gap-2 text-[11px] text-muted-foreground select-none cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={!!stats2.tableRun}
-                  onChange={e => setStats2(prev => ({ ...prev, tableRun: e.target.checked }))}
-                  className="rounded accent-primary bg-background border-border"
-                />
-                Table Run
-              </label>
+            {/* Stats Counters P2 */}
+            <div className="pt-3 text-left space-y-3 border-t border-border/40 mt-2">
+              <div className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="text-muted-foreground font-bold">Break & Run:</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setStats2(prev => ({ 
+                      ...prev, 
+                      breakAndRun: Math.max(0, (typeof prev.breakAndRun === 'number' ? prev.breakAndRun : (prev.breakAndRun ? 1 : 0)) - 1) 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="text-white font-mono font-bold w-4 text-center">
+                    {typeof stats2.breakAndRun === 'number' ? stats2.breakAndRun : (stats2.breakAndRun ? 1 : 0)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStats2(prev => ({ 
+                      ...prev, 
+                      breakAndRun: (typeof prev.breakAndRun === 'number' ? prev.breakAndRun : (prev.breakAndRun ? 1 : 0)) + 1 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="text-muted-foreground font-bold">Table Run:</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setStats2(prev => ({ 
+                      ...prev, 
+                      tableRun: Math.max(0, (typeof prev.tableRun === 'number' ? prev.tableRun : (prev.tableRun ? 1 : 0)) - 1) 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="text-white font-mono font-bold w-4 text-center">
+                    {typeof stats2.tableRun === 'number' ? stats2.tableRun : (stats2.tableRun ? 1 : 0)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStats2(prev => ({ 
+                      ...prev, 
+                      tableRun: (typeof prev.tableRun === 'number' ? prev.tableRun : (prev.tableRun ? 1 : 0)) + 1 
+                    }))}
+                    className="h-5 w-5 rounded bg-slate-800 text-white flex items-center justify-center font-extrabold border border-border/60 hover:bg-slate-700 cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

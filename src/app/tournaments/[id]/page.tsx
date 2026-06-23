@@ -98,8 +98,8 @@ export default function TournamentDetailPage() {
   const [scoringMatch, setScoringMatch] = useState<Match | null>(null);
   const [score1, setScore1] = useState(0);
   const [score2, setScore2] = useState(0);
-  const [stats1, setStats1] = useState<MatchStats>({ breakAndRun: false, tableRun: false });
-  const [stats2, setStats2] = useState<MatchStats>({ breakAndRun: false, tableRun: false });
+  const [stats1, setStats1] = useState<MatchStats>({ breakAndRun: 0, tableRun: 0 });
+  const [stats2, setStats2] = useState<MatchStats>({ breakAndRun: 0, tableRun: 0 });
   const [saving, setSaving] = useState(false);
   const [bidsMap, setBidsMap] = useState<Record<string, { bidAmount: number; buyerName: string; buyerName2?: string; split: boolean }>>({});
   const [startingTournament, setStartingTournament] = useState(false);
@@ -616,8 +616,8 @@ export default function TournamentDetailPage() {
     setScoringMatch(match);
     setScore1(match.player1Score || 0);
     setScore2(match.player2Score || 0);
-    setStats1(match.player1Stats || { breakAndRun: false, tableRun: false });
-    setStats2(match.player2Stats || { breakAndRun: false, tableRun: false });
+    setStats1(match.player1Stats || { breakAndRun: 0, tableRun: 0 });
+    setStats2(match.player2Stats || { breakAndRun: 0, tableRun: 0 });
   };
 
   const handleSaveScore = async () => {

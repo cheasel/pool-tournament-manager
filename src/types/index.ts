@@ -52,8 +52,8 @@ export interface Group {
 }
 
 export interface MatchStats {
-  breakAndRun?: boolean;
-  tableRun?: boolean;
+  breakAndRun?: number | boolean;
+  tableRun?: number | boolean;
 }
 
 export interface Match {
