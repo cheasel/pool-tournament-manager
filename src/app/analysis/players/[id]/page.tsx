@@ -7,6 +7,7 @@ import { getDatabaseAdapter } from '@/lib/db';
 import { Player, TournamentDetails, HandicapHistoryEntry, Match } from '@/types';
 import { getPlayerStats, PlayerStatsSummary } from '@/lib/stats';
 import { useAuth } from '@/context/AuthContext';
+import { calculateTournamentEarnings } from '@/lib/earnings';
 import { 
   ArrowLeft, 
   Trophy, 
@@ -32,6 +33,18 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
   const [player, setPlayer] = useState<Player | null>(null);
   const [stats, setStats] = useState<PlayerStatsSummary | null>(null);
   const [history, setHistory] = useState<HandicapHistoryEntry[]>([]);
+  
+  interface PlacementPoint {
+    tournamentId: string;
+    tournamentName: string;
+    date: string;
+    rank: number;
+    maxRound: number;
+    positionLabel: 'Champion' | 'Runner-up' | 'Semifinalist' | 'Knockout Round' | 'Group Stage';
+    positionValue: number;
+  }
+  
+  const [placements, setPlacements] = useState<PlacementPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,6 +71,57 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
         // Compute statistics
         const computedStats = getPlayerStats(activePlayer, validDetails);
         setStats(computedStats);
+
+        // Compute placements for the last 5 completed tournaments
+        const participatedDetails = validDetails
+          .filter(d => d.tournament.status === 'completed' && d.players.some(p => p.id === playerId))
+          .sort((a, b) => new Date(b.tournament.createdAt).getTime() - new Date(a.tournament.createdAt).getTime());
+
+        const last5Participated = participatedDetails.slice(0, 5).reverse(); // last 5, oldest to newest
+
+        const placementPoints: PlacementPoint[] = last5Participated.map(d => {
+          const t = d.tournament;
+          const seMatches = d.matches.filter(m => m.roundType === 'knockout');
+          const maxRound = seMatches.length > 0 ? Math.max(...seMatches.map(m => m.roundNumber), 0) : 0;
+          
+          const earningsList = calculateTournamentEarnings(d);
+          const playerEarnings = earningsList.find(e => e.playerId === playerId);
+          const rank = playerEarnings ? playerEarnings.rank : 0;
+
+          let positionLabel: PlacementPoint['positionLabel'] = 'Group Stage';
+          let positionValue = 1;
+
+          const groupStageRank = maxRound > 0 ? Math.pow(2, maxRound) + 1 : 9;
+
+          if (rank === 1) {
+            positionLabel = 'Champion';
+            positionValue = 5;
+          } else if (rank === 2) {
+            positionLabel = 'Runner-up';
+            positionValue = 4;
+          } else if (rank === 3) {
+            positionLabel = 'Semifinalist';
+            positionValue = 3;
+          } else if (rank > 3 && rank < groupStageRank) {
+            positionLabel = 'Knockout Round';
+            positionValue = 2;
+          } else {
+            positionLabel = 'Group Stage';
+            positionValue = 1;
+          }
+
+          return {
+            tournamentId: t.id,
+            tournamentName: t.name,
+            date: new Date(t.createdAt).toLocaleDateString(undefined, { month: 'short', year: '2-digit' }),
+            rank,
+            maxRound,
+            positionLabel,
+            positionValue,
+          };
+        });
+
+        setPlacements(placementPoints);
 
         // Fetch handicap history timeline
         const handicapLog = await db.getHandicapHistory(playerId);
@@ -532,6 +596,144 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
             10-Ball (Current: {player.skillLevel10})
           </span>
         </div>
+      </div>
+
+      {/* Tournament Placement History Trend Graph */}
+      <div className="glass-panel p-6 rounded-2xl border border-border/40 shadow-xl space-y-4">
+        <div>
+          <h2 className="text-base font-extrabold text-white flex items-center gap-2 border-b border-border/20 pb-3">
+            <Trophy className="h-4.5 w-4.5 text-primary" />
+            Tournament Placement History (Last 5 Tournaments)
+          </h2>
+          <p className="text-xs text-muted-foreground mt-2">
+            Chronological finishing positions reached by the player across their last 5 completed tournaments.
+          </p>
+        </div>
+
+        {placements.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground italic text-xs">
+            No completed tournament history available.
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto pt-4 pb-2 scrollbar-none">
+            <svg width={svgWidth} height={svgHeight} className="mx-auto block bg-slate-950/40 border border-border/20 rounded-xl">
+              {/* Grid horizontal guidelines */}
+              {[
+                { value: 5, label: 'Champion' },
+                { value: 4, label: 'Runner-up' },
+                { value: 3, label: 'Semifinalist' },
+                { value: 2, label: 'Knockout Round' },
+                { value: 1, label: 'Group Stage' },
+              ].map(item => {
+                const percentage = (item.value - 1) / 4;
+                const usableHeight = svgHeight - 2 * paddingY;
+                const y = paddingY + (1 - percentage) * usableHeight;
+                const paddingXLeft = 110;
+                return (
+                  <g key={item.value} className="opacity-30">
+                    <line x1={paddingXLeft} y1={y} x2={svgWidth - paddingX} y2={y} stroke="#475569" strokeWidth="0.8" strokeDasharray="4 4" />
+                    <text x={paddingXLeft - 12} y={y + 3} className="fill-slate-400 text-[10px] font-bold text-right" textAnchor="end">
+                      {item.label}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Vertical guidelines */}
+              {placements.map((pt, idx) => {
+                const paddingXLeft = 110;
+                const paddingXRight = 40;
+                let x = paddingXLeft;
+                if (placements.length > 1) {
+                  const usableWidth = svgWidth - paddingXLeft - paddingXRight;
+                  x = paddingXLeft + (idx / (placements.length - 1)) * usableWidth;
+                } else {
+                  x = paddingXLeft + (svgWidth - paddingXLeft - paddingXRight) / 2;
+                }
+                return (
+                  <g key={idx} className="opacity-20">
+                    <line x1={x} y1={paddingY} x2={x} y2={svgHeight - paddingY} stroke="#475569" strokeWidth="0.8" />
+                  </g>
+                );
+              })}
+
+              {/* Trend Line */}
+              {placements.length > 0 && (
+                <path
+                  d={(() => {
+                    const paddingXLeft = 110;
+                    const paddingXRight = 40;
+                    return placements
+                      .map((pt, idx) => {
+                        let x = paddingXLeft;
+                        if (placements.length > 1) {
+                          const usableWidth = svgWidth - paddingXLeft - paddingXRight;
+                          x = paddingXLeft + (idx / (placements.length - 1)) * usableWidth;
+                        } else {
+                          x = paddingXLeft + (svgWidth - paddingXLeft - paddingXRight) / 2;
+                        }
+                        const percentage = (pt.positionValue - 1) / 4;
+                        const usableHeight = svgHeight - 2 * paddingY;
+                        const y = paddingY + (1 - percentage) * usableHeight;
+                        return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+                      })
+                      .join(' ');
+                  })()}
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {/* Dots */}
+              {placements.map((pt, idx) => {
+                const paddingXLeft = 110;
+                const paddingXRight = 40;
+                let x = paddingXLeft;
+                if (placements.length > 1) {
+                  const usableWidth = svgWidth - paddingXLeft - paddingXRight;
+                  x = paddingXLeft + (idx / (placements.length - 1)) * usableWidth;
+                } else {
+                  x = paddingXLeft + (svgWidth - paddingXLeft - paddingXRight) / 2;
+                }
+                const percentage = (pt.positionValue - 1) / 4;
+                const usableHeight = svgHeight - 2 * paddingY;
+                const y = paddingY + (1 - percentage) * usableHeight;
+
+                return (
+                  <g key={idx} className="group/dot cursor-pointer">
+                    <circle cx={x} cy={y} r="4" className="fill-slate-950 stroke-amber-500 stroke-[2] hover:r-5 transition-all" />
+                  </g>
+                );
+              })}
+
+              {/* X-Axis labels */}
+              {placements.map((pt, idx) => {
+                const paddingXLeft = 110;
+                const paddingXRight = 40;
+                let x = paddingXLeft;
+                if (placements.length > 1) {
+                  const usableWidth = svgWidth - paddingXLeft - paddingXRight;
+                  x = paddingXLeft + (idx / (placements.length - 1)) * usableWidth;
+                } else {
+                  x = paddingXLeft + (svgWidth - paddingXLeft - paddingXRight) / 2;
+                }
+                return (
+                  <g key={idx}>
+                    <text x={x} y={svgHeight - 16} className="fill-slate-300 text-[9px] font-bold text-center" textAnchor="middle">
+                      {pt.tournamentName.length > 15 ? pt.tournamentName.substring(0, 12) + '...' : pt.tournamentName}
+                    </text>
+                    <text x={x} y={svgHeight - 6} className="fill-slate-500 text-[8px] font-mono text-center" textAnchor="middle">
+                      {pt.date}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        )}
       </div>
 
       {/* Modification logs list */}
