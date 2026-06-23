@@ -33,6 +33,7 @@ interface PlayerStats {
   winRate: number;
   racksWon: number;
   racksLost: number;
+  frameWinRate: number;
   breakAndRuns: number;
   tableRuns: number;
   mismatchScore: number; // calculated rating of mismatch severity
@@ -53,7 +54,7 @@ export default function AnalysisPage() {
   // Filter/Sort states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'flagged'>('all');
-  const [sortField, setSortField] = useState<'winRate' | 'matches' | 'handicap' | 'mismatchScore'>('mismatchScore');
+  const [sortField, setSortField] = useState<'winRate' | 'frameWinRate' | 'matches' | 'handicap' | 'mismatchScore'>('mismatchScore');
   const [sortAsc, setSortAsc] = useState(false);
 
   // In-place edit state
@@ -166,6 +167,8 @@ export default function AnalysisPage() {
 
     const totalMatches = wins + losses;
     const winRate = totalMatches > 0 ? wins / totalMatches : 0;
+    const totalRacks = racksWon + racksLost;
+    const frameWinRate = totalRacks > 0 ? racksWon / totalRacks : 0;
 
     // Evaluate mismatch severity
     let mismatchScore = 0;
@@ -179,11 +182,22 @@ export default function AnalysisPage() {
       if (winRate > 0.70) {
         mismatchStatus = 'high';
         mismatchScore += (winRate - 0.70) * 100;
-        mismatchReason = `High win rate of ${(winRate * 100).toFixed(0)}% over ${totalMatches} matches. `;
+        mismatchReason += `High match win rate of ${(winRate * 100).toFixed(0)}% over ${totalMatches} matches. `;
       } else if (winRate < 0.30) {
         mismatchStatus = 'warn';
         mismatchScore += (0.30 - winRate) * 50;
-        mismatchReason = `Low win rate of ${(winRate * 100).toFixed(0)}% over ${totalMatches} matches. `;
+        mismatchReason += `Low match win rate of ${(winRate * 100).toFixed(0)}% over ${totalMatches} matches. `;
+      }
+
+      // Frame (Rack) Win Rate checks (primary focus)
+      if (frameWinRate > 0.65) {
+        mismatchStatus = 'high';
+        mismatchScore += (frameWinRate - 0.65) * 150;
+        mismatchReason += `Dominant frame win rate of ${(frameWinRate * 100).toFixed(0)}% (${racksWon}-${racksLost}). `;
+      } else if (frameWinRate < 0.35) {
+        mismatchStatus = 'warn';
+        mismatchScore += (0.35 - frameWinRate) * 75;
+        mismatchReason += `Low frame win rate of ${(frameWinRate * 100).toFixed(0)}% (${racksWon}-${racksLost}). `;
       }
     }
 
@@ -208,6 +222,7 @@ export default function AnalysisPage() {
       winRate,
       racksWon,
       racksLost,
+      frameWinRate,
       breakAndRuns,
       tableRuns,
       mismatchScore,
@@ -230,6 +245,8 @@ export default function AnalysisPage() {
     let comparison = 0;
     if (sortField === 'winRate') {
       comparison = a.winRate - b.winRate;
+    } else if (sortField === 'frameWinRate') {
+      comparison = a.frameWinRate - b.frameWinRate;
     } else if (sortField === 'matches') {
       comparison = a.totalMatches - b.totalMatches;
     } else if (sortField === 'handicap') {
@@ -242,7 +259,7 @@ export default function AnalysisPage() {
     return sortAsc ? comparison : -comparison;
   });
 
-  const handleSort = (field: 'winRate' | 'matches' | 'handicap' | 'mismatchScore') => {
+  const handleSort = (field: 'winRate' | 'frameWinRate' | 'matches' | 'handicap' | 'mismatchScore') => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
     } else {
@@ -434,7 +451,13 @@ export default function AnalysisPage() {
                   </th>
                   <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-center" onClick={() => handleSort('winRate')}>
                     <div className="flex items-center justify-center gap-1">
-                      Win Rate %
+                      Match Win %
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                    </div>
+                  </th>
+                  <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-center" onClick={() => handleSort('frameWinRate')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Frame Win %
                       <ArrowUpDown className="h-3.5 w-3.5" />
                     </div>
                   </th>
@@ -485,7 +508,7 @@ export default function AnalysisPage() {
                         </span>
                       </td>
 
-                      {/* Win Rate */}
+                      {/* Match Win Rate */}
                       <td className="px-6 py-4 text-center">
                         <span className={`text-sm ${
                           stat.winRate > 0.70 
@@ -495,6 +518,19 @@ export default function AnalysisPage() {
                               : 'text-slate-300'
                         }`}>
                           {(stat.winRate * 100).toFixed(0)}%
+                        </span>
+                      </td>
+
+                      {/* Frame Win Rate */}
+                      <td className="px-6 py-4 text-center">
+                        <span className={`text-sm ${
+                          stat.frameWinRate > 0.65 
+                            ? 'text-billiard-red' 
+                            : stat.frameWinRate < 0.35 && stat.totalMatches >= 5
+                              ? 'text-billiard-blue' 
+                              : 'text-slate-300'
+                        }`}>
+                          {(stat.frameWinRate * 100).toFixed(0)}%
                         </span>
                         <span className="text-[10px] text-muted-foreground block font-medium">
                           racks: {stat.racksWon}-{stat.racksLost}

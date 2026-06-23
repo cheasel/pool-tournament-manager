@@ -274,18 +274,22 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
           </div>
 
           {/* Quick Summary Grid */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="bg-slate-900/60 border border-border/40 px-4 py-2 rounded-xl text-center">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Wins</p>
-              <p className="text-lg font-black text-primary">{stats.matches.won}</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Match Record</p>
+              <p className="text-sm font-black text-primary mt-0.5">{stats.matches.won}W - {stats.matches.lost}L</p>
             </div>
             <div className="bg-slate-900/60 border border-border/40 px-4 py-2 rounded-xl text-center">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Losses</p>
-              <p className="text-lg font-black text-billiard-red">{stats.matches.lost}</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Match Win %</p>
+              <p className="text-sm font-black text-billiard-blue mt-0.5">{stats.matches.winRate}%</p>
             </div>
             <div className="bg-slate-900/60 border border-border/40 px-4 py-2 rounded-xl text-center">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Win Rate</p>
-              <p className="text-lg font-black text-billiard-blue">{stats.matches.winRate}%</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Frame Record</p>
+              <p className="text-sm font-black text-emerald-400 mt-0.5">{stats.racks.won}W - {stats.racks.lost}L</p>
+            </div>
+            <div className="bg-slate-900/60 border border-border/40 px-4 py-2 rounded-xl text-center">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Frame Win %</p>
+              <p className="text-sm font-black text-accent mt-0.5">{stats.racks.winRate}%</p>
             </div>
           </div>
         </div>
@@ -293,15 +297,15 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
 
       {/* Visual Analytics Charts Section */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Wins vs Losses Segment Donut Chart */}
+        {/* Frame vs Losses Segment Donut Chart */}
         <div className="glass-panel p-6 rounded-2xl border border-border/40 shadow-xl flex flex-col justify-between h-96">
           <div>
             <h2 className="text-base font-extrabold text-white flex items-center gap-2 border-b border-border/20 pb-3">
               <Percent className="h-4.5 w-4.5 text-primary" />
-              Win-Loss Ratio
+              Frame Win-Loss Ratio
             </h2>
             <p className="text-xs text-muted-foreground mt-2">
-              Career match distribution showing percentage of successful finishes.
+              Career frame (rack) distribution showing percentage of individual game wins.
             </p>
           </div>
 
@@ -313,12 +317,12 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
                   <circle cx="18" cy="18" r="15.915" fill="none" stroke="#ef4444" strokeWidth="3.5" />
                   {/* Wins segments (Overlay Circle) */}
                   <circle cx="18" cy="18" r="15.915" fill="none" stroke="#10b981" strokeWidth="3.5" 
-                          strokeDasharray={`${winPercent} ${100 - winPercent}`} strokeDashoffset="0" pathLength="100" />
+                          strokeDasharray={`${stats.racks.winRate} ${100 - stats.racks.winRate}`} strokeDashoffset="0" pathLength="100" />
                 </svg>
                 {/* Center text cut-out overlay */}
                 <div className="absolute inset-0 m-4 bg-slate-950 border border-border/30 rounded-full flex flex-col items-center justify-center">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Win Rate</span>
-                  <span className="text-2xl font-black text-white mt-0.5">{winPercent.toFixed(0)}%</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Frame Win %</span>
+                  <span className="text-2xl font-black text-white mt-0.5">{stats.racks.winRate.toFixed(0)}%</span>
                 </div>
               </div>
             ) : (
@@ -332,11 +336,11 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
           <div className="flex justify-center gap-6 text-xs font-bold border-t border-border/20 pt-3 bg-card/10">
             <span className="flex items-center gap-1.5 text-primary">
               <span className="h-2.5 w-2.5 rounded-full bg-[#10b981]" />
-              Wins ({stats.matches.won})
+              Frames Won ({stats.racks.won})
             </span>
             <span className="flex items-center gap-1.5 text-billiard-red">
               <span className="h-2.5 w-2.5 rounded-full bg-[#ef4444]" />
-              Losses ({stats.matches.lost})
+              Frames Lost ({stats.racks.lost})
             </span>
           </div>
         </div>
@@ -346,27 +350,27 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
           <div>
             <h2 className="text-base font-extrabold text-white flex items-center gap-2 border-b border-border/20 pb-3">
               <Target className="h-4.5 w-4.5 text-accent" />
-              Discipline Win Rates
+              Discipline Frame Win %
             </h2>
             <p className="text-xs text-muted-foreground mt-2">
-              Performance breakdown comparing 8-Ball, 9-Ball, and 10-Ball matches.
+              Performance breakdown comparing 8-Ball, 9-Ball, and 10-Ball frame (rack) win rates.
             </p>
           </div>
 
           <div className="grid grid-cols-3 gap-2 pt-6 items-end justify-center h-48">
             {(['8-Ball', '9-Ball', '10-Ball'] as const).map(gt => {
               const gb = stats.gameBreakdown[gt];
-              const played = gb.matches.played;
-              const winRate = gb.matches.winRate;
+              const playedRacks = gb.racks.won + gb.racks.lost;
+              const frameWinRate = gb.racks.winRate;
 
               return (
                 <div key={gt} className="flex flex-col items-center gap-2 h-full justify-end group">
                   <div className="text-[10px] font-mono text-slate-300 font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                    {winRate}%
+                    {frameWinRate}%
                   </div>
                   {/* Visual Bar container */}
                   <div className="w-10 bg-slate-900 border border-slate-800 rounded-t-lg h-36 flex flex-col justify-end overflow-hidden">
-                    {played > 0 ? (
+                    {playedRacks > 0 ? (
                       <div 
                         className={`w-full rounded-t bg-gradient-to-t transition-all duration-700 shadow-md ${
                           gt === '8-Ball' 
@@ -375,7 +379,7 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
                               ? 'from-[#b45309]/50 to-billiard-yellow shadow-billiard-yellow/20' 
                               : 'from-billiard-blue/50 to-blue-400 shadow-blue-400/20'
                         }`} 
-                        style={{ height: `${winRate}%` }} 
+                        style={{ height: `${frameWinRate}%` }} 
                       />
                     ) : (
                       <div className="w-full bg-slate-950/20 h-1.5" />
@@ -383,7 +387,7 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
                   </div>
                   {/* Labels */}
                   <div className="text-xs font-bold text-white mt-1">{gt}</div>
-                  <div className="text-[9px] text-muted-foreground font-semibold uppercase">{played} Match{played !== 1 ? 'es' : ''}</div>
+                  <div className="text-[9px] text-muted-foreground font-semibold uppercase">{gb.racks.won}W - {gb.racks.lost}L</div>
                 </div>
               );
             })}
