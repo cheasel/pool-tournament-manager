@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getDatabaseAdapter } from '@/lib/db';
-import { Player, Match } from '@/types';
+import { Player, Match, Tournament } from '@/types';
 import { 
   ShieldAlert, 
   ShieldCheck, 
@@ -49,11 +49,13 @@ export default function AnalysisPage() {
   // Data states
   const [players, setPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter/Sort states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'flagged'>('all');
+  const [activeGameType, setActiveGameType] = useState<'all' | '8-Ball' | '9-Ball' | '10-Ball'>('all');
   const [sortField, setSortField] = useState<'winRate' | 'frameWinRate' | 'matches' | 'handicap' | 'mismatchScore'>('mismatchScore');
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -78,13 +80,15 @@ export default function AnalysisPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [playerList, matchList] = await Promise.all([
+      const [playerList, matchList, tournamentList] = await Promise.all([
         db.getPlayers(),
-        db.getAllMatches()
+        db.getAllMatches(),
+        db.getTournaments()
       ]);
       // Filter out bye spacers
       setPlayers(playerList.filter(p => !p.isBye));
       setMatches(matchList);
+      setTournaments(tournamentList);
     } catch (err) {
       console.error('Failed to load database data:', err);
     } finally {
@@ -132,9 +136,20 @@ export default function AnalysisPage() {
     );
   }
 
+  const tournamentGameTypes = React.useMemo(() => {
+    const map = new Map<string, string>();
+    tournaments.forEach(t => map.set(t.id, t.gameType));
+    return map;
+  }, [tournaments]);
+
+  const activeMatches = React.useMemo(() => {
+    if (activeGameType === 'all') return matches;
+    return matches.filter(m => tournamentGameTypes.get(m.tournamentId) === activeGameType);
+  }, [matches, activeGameType, tournamentGameTypes]);
+
   // Perform statistics calculation for each player
   const calculatePlayerStats = (player: Player): PlayerStats => {
-    const playerMatches = matches.filter(m => 
+    const playerMatches = activeMatches.filter(m => 
       m.status === 'completed' && 
       (m.player1Id === player.id || m.player2Id === player.id)
     );
@@ -374,6 +389,62 @@ export default function AnalysisPage() {
           <span>{actionSuccess}</span>
         </div>
       )}
+
+      {/* Game Type Tabs */}
+      <div className="flex border-b border-border/20 gap-6 text-sm font-bold pb-px shrink-0">
+        <button
+          onClick={() => setActiveGameType('all')}
+          className={`pb-3 px-1 transition-all relative cursor-pointer ${
+            activeGameType === 'all'
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          All Formats
+          {activeGameType === 'all' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveGameType('8-Ball')}
+          className={`pb-3 px-1 transition-all relative cursor-pointer ${
+            activeGameType === '8-Ball'
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          8-Ball
+          {activeGameType === '8-Ball' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveGameType('9-Ball')}
+          className={`pb-3 px-1 transition-all relative cursor-pointer ${
+            activeGameType === '9-Ball'
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          9-Ball
+          {activeGameType === '9-Ball' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveGameType('10-Ball')}
+          className={`pb-3 px-1 transition-all relative cursor-pointer ${
+            activeGameType === '10-Ball'
+              ? 'text-primary'
+              : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          10-Ball
+          {activeGameType === '10-Ball' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full animate-fade-in" />
+          )}
+        </button>
+      </div>
 
       {/* Control panel (Filter, Search, Sort) */}
       <div className="glass-panel rounded-2xl p-5 border border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
