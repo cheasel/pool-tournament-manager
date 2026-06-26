@@ -11,6 +11,7 @@ interface PlacementPoint {
   maxRound: number;
   positionLabel: 'Champion' | 'Runner-up' | 'Semifinalist' | 'Knockout Round' | 'Group Stage';
   positionValue: number;
+  entryFee: number;
 }
 
 // Logic to test
@@ -56,6 +57,7 @@ function determinePlacement(
     maxRound,
     positionLabel,
     positionValue,
+    entryFee: t.entryFee || 0,
   };
 }
 
@@ -186,5 +188,60 @@ describe('Player Placements Determination', () => {
     const placement3 = determinePlacement(playerId, detailsSemi);
     expect(placement3.positionLabel).toBe('Semifinalist');
     expect(placement3.positionValue).toBe(3);
+  });
+
+  it('correctly filters premium tournaments and slices to limit', () => {
+    // Array of mock PlacementPoints (from newest to oldest)
+    const mockPlacements: PlacementPoint[] = [
+      { tournamentId: 't1', tournamentName: 'T1', date: '2026-06-20', rank: 1, maxRound: 1, positionLabel: 'Champion', positionValue: 5, entryFee: 1500 }, // Newest premium
+      { tournamentId: 't2', tournamentName: 'T2', date: '2026-06-19', rank: 2, maxRound: 1, positionLabel: 'Runner-up', positionValue: 4, entryFee: 500 },   // Standard
+      { tournamentId: 't3', tournamentName: 'T3', date: '2026-06-18', rank: 3, maxRound: 1, positionLabel: 'Semifinalist', positionValue: 3, entryFee: 2000 }, // Premium
+      { tournamentId: 't4', tournamentName: 'T4', date: '2026-06-17', rank: 4, maxRound: 1, positionLabel: 'Knockout Round', positionValue: 2, entryFee: 0 },   // Free
+      { tournamentId: 't5', tournamentName: 'T5', date: '2026-06-16', rank: 5, maxRound: 1, positionLabel: 'Group Stage', positionValue: 1, entryFee: 1000 },  // Premium
+      { tournamentId: 't6', tournamentName: 'T6', date: '2026-06-15', rank: 1, maxRound: 1, positionLabel: 'Champion', positionValue: 5, entryFee: 500 },    // Standard
+      { tournamentId: 't7', tournamentName: 'T7', date: '2026-06-14', rank: 2, maxRound: 1, positionLabel: 'Runner-up', positionValue: 4, entryFee: 3000 },  // Premium
+    ];
+
+    // Helper simulating the useMemo selector
+    function selectPlacements(all: PlacementPoint[], limit: number, onlyPremium: boolean): PlacementPoint[] {
+      let list = all;
+      if (onlyPremium) {
+        list = list.filter(p => p.entryFee >= 1000);
+      }
+      const sliced = list.slice(0, limit);
+      return [...sliced].reverse(); // oldest-to-newest chronological display
+    }
+
+    // Case 1: Limit 5, no premium filter
+    const result1 = selectPlacements(mockPlacements, 5, false);
+    // Should contain T5, T4, T3, T2, T1 in that order (reverse of sliced first 5)
+    expect(result1.length).toBe(5);
+    expect(result1[0].tournamentId).toBe('t5');
+    expect(result1[4].tournamentId).toBe('t1');
+
+    // Case 2: Limit 10, no premium filter
+    const result2 = selectPlacements(mockPlacements, 10, false);
+    // Should contain T7, T6, T5, T4, T3, T2, T1 (all 7 elements reversed)
+    expect(result2.length).toBe(7);
+    expect(result2[0].tournamentId).toBe('t7');
+    expect(result2[6].tournamentId).toBe('t1');
+
+    // Case 3: Limit 5, only premium filter
+    const result3 = selectPlacements(mockPlacements, 5, true);
+    // Premium are: T1 (1500), T3 (2000), T5 (1000), T7 (3000). Total 4.
+    // The sliced first 5 premium are T1, T3, T5, T7.
+    // In reverse order: T7, T5, T3, T1
+    expect(result3.length).toBe(4);
+    expect(result3[0].tournamentId).toBe('t7');
+    expect(result3[3].tournamentId).toBe('t1');
+    expect(result3.every(p => p.entryFee >= 1000)).toBe(true);
+
+    // Case 4: Limit 2, only premium filter
+    const result4 = selectPlacements(mockPlacements, 2, true);
+    // Premium list is T1, T3, T5, T7. Sliced to 2 is T1, T3.
+    // Reversed is T3, T1.
+    expect(result4.length).toBe(2);
+    expect(result4[0].tournamentId).toBe('t3');
+    expect(result4[1].tournamentId).toBe('t1');
   });
 });

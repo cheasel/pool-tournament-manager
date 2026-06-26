@@ -42,9 +42,22 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
     maxRound: number;
     positionLabel: 'Champion' | 'Runner-up' | 'Semifinalist' | 'Knockout Round' | 'Group Stage';
     positionValue: number;
+    entryFee: number;
   }
   
-  const [placements, setPlacements] = useState<PlacementPoint[]>([]);
+  const [allPlacements, setAllPlacements] = useState<PlacementPoint[]>([]);
+  const [placementLimit, setPlacementLimit] = useState<5 | 10>(5);
+  const [onlyPremiumPlacements, setOnlyPremiumPlacements] = useState(false);
+
+  const placements = React.useMemo(() => {
+    let list = allPlacements;
+    if (onlyPremiumPlacements) {
+      list = list.filter(p => p.entryFee >= 1000);
+    }
+    const sliced = list.slice(0, placementLimit);
+    return [...sliced].reverse();
+  }, [allPlacements, placementLimit, onlyPremiumPlacements]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -72,14 +85,12 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
         const computedStats = getPlayerStats(activePlayer, validDetails);
         setStats(computedStats);
 
-        // Compute placements for the last 5 completed tournaments
+        // Compute placements for all completed tournaments the player participated in
         const participatedDetails = validDetails
           .filter(d => d.tournament.status === 'completed' && d.players.some(p => p.id === playerId))
-          .sort((a, b) => new Date(b.tournament.createdAt).getTime() - new Date(a.tournament.createdAt).getTime());
+          .sort((a, b) => new Date(b.tournament.createdAt).getTime() - new Date(a.tournament.createdAt).getTime()); // newest to oldest
 
-        const last5Participated = participatedDetails.slice(0, 5).reverse(); // last 5, oldest to newest
-
-        const placementPoints: PlacementPoint[] = last5Participated.map(d => {
+        const placementPoints: PlacementPoint[] = participatedDetails.map(d => {
           const t = d.tournament;
           const seMatches = d.matches.filter(m => m.roundType === 'knockout');
           const maxRound = seMatches.length > 0 ? Math.max(...seMatches.map(m => m.roundNumber), 0) : 0;
@@ -118,10 +129,11 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
             maxRound,
             positionLabel,
             positionValue,
+            entryFee: t.entryFee || 0,
           };
         });
 
-        setPlacements(placementPoints);
+        setAllPlacements(placementPoints);
 
         // Fetch handicap history timeline
         const handicapLog = await db.getHandicapHistory(playerId);
@@ -600,14 +612,46 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
 
       {/* Tournament Placement History Trend Graph */}
       <div className="glass-panel p-6 rounded-2xl border border-border/40 shadow-xl space-y-4">
-        <div>
-          <h2 className="text-base font-extrabold text-white flex items-center gap-2 border-b border-border/20 pb-3">
-            <Trophy className="h-4.5 w-4.5 text-primary" />
-            Tournament Placement History (Last 5 Tournaments)
-          </h2>
-          <p className="text-xs text-muted-foreground mt-2">
-            Chronological finishing positions reached by the player across their last 5 completed tournaments.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/20 pb-3">
+          <div className="space-y-1">
+            <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+              <Trophy className="h-4.5 w-4.5 text-primary" />
+              Tournament Placement History (Last {placementLimit} Tournaments)
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Chronological finishing positions reached by the player.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Filter: Premium Only */}
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer select-none bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg transition-colors">
+              <input
+                type="checkbox"
+                checked={onlyPremiumPlacements}
+                onChange={(e) => setOnlyPremiumPlacements(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-950 text-primary focus:ring-primary/30 h-3.5 w-3.5"
+              />
+              <span>Premium & Above (฿1,000+)</span>
+            </label>
+
+            {/* Selector: Limit (5 vs 10) */}
+            <div className="flex items-center bg-slate-900/60 border border-slate-800 rounded-lg p-0.5">
+              {([5, 10] as const).map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => setPlacementLimit(num)}
+                  className={`px-3 py-1 text-xs font-black rounded-md transition-all cursor-pointer ${
+                    placementLimit === num
+                      ? 'bg-primary text-background shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Last {num}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {placements.length === 0 ? (

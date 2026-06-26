@@ -1,4 +1,4 @@
-import { Player, Match, Group, GameType } from '../types';
+import { Player, Match, Group, GameType, Tournament } from '../types';
 import { calculateMatchHandicap } from './handicap';
 
 /**
