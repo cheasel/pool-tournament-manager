@@ -229,4 +229,99 @@ describe('Super Admin Handicap Mismatch Analysis Logic', () => {
     expect(analysis.mismatchScore).toBe(15); // 15 points per breakAndRun
     expect(analysis.mismatchReason).toContain('scoring 1 Break-and-run(s)');
   });
+
+  it('correctly filters matches to only include those after the latest handicap change', () => {
+    const player: Player = {
+      id: 'test_player',
+      name: 'Test Player',
+      skillLevel8: 5,
+      skillLevel9: 5,
+      skillLevel10: 5,
+      createdAt: ''
+    };
+
+    const mockMatches: Match[] = [
+      {
+        id: 'match_before',
+        tournamentId: 't1',
+        roundType: 'knockout',
+        roundNumber: 1,
+        matchNumber: 1,
+        player1Id: 'test_player',
+        player2Id: 'other_p',
+        player1Score: 5,
+        player2Score: 2,
+        player1Target: 5,
+        player2Target: 5,
+        player1SpottedBalls: [],
+        player2SpottedBalls: [],
+        status: 'completed',
+        winnerId: 'test_player',
+        createdAt: '2026-06-10T12:00:00.000Z'
+      },
+      {
+        id: 'match_after',
+        tournamentId: 't1',
+        roundType: 'knockout',
+        roundNumber: 1,
+        matchNumber: 2,
+        player1Id: 'test_player',
+        player2Id: 'other_p',
+        player1Score: 5,
+        player2Score: 1,
+        player1Target: 5,
+        player2Target: 5,
+        player1SpottedBalls: [],
+        player2SpottedBalls: [],
+        status: 'completed',
+        winnerId: 'test_player',
+        createdAt: '2026-06-25T12:00:00.000Z'
+      }
+    ];
+
+    const history = [
+      {
+        id: 'hist_1',
+        playerId: 'test_player',
+        changedAt: '2026-06-20T12:00:00.000Z',
+        oldSkillLevel8: 4,
+        oldSkillLevel9: 4,
+        oldSkillLevel10: 4,
+        newSkillLevel8: 5,
+        newSkillLevel9: 5,
+        newSkillLevel10: 5
+      }
+    ];
+
+    // Simulating calculatePlayerStats filter logic
+    function getFilteredPlayerMatches(
+      player: Player,
+      matches: Match[],
+      showOnlyAfterLastChange: boolean,
+      handicapHistory: any[]
+    ): Match[] {
+      let playerMatches = matches.filter(m =>
+        m.status === 'completed' &&
+        (m.player1Id === player.id || m.player2Id === player.id)
+      );
+
+      if (showOnlyAfterLastChange) {
+        const playerHistory = handicapHistory.filter(h => h.playerId === player.id);
+        if (playerHistory.length > 0) {
+          const latestChangeTime = Math.max(...playerHistory.map(h => new Date(h.changedAt).getTime()));
+          playerMatches = playerMatches.filter(m => new Date(m.createdAt).getTime() > latestChangeTime);
+        }
+      }
+      return playerMatches;
+    }
+
+    // Case 1: Filter disabled -> returns both matches
+    const allMatches = getFilteredPlayerMatches(player, mockMatches, false, history);
+    expect(allMatches.length).toBe(2);
+
+    // Case 2: Filter enabled -> returns only match_after (created on 2026-06-25, which is > change date 2026-06-20)
+    const filteredMatches = getFilteredPlayerMatches(player, mockMatches, true, history);
+    expect(filteredMatches.length).toBe(1);
+    expect(filteredMatches[0].id).toBe('match_after');
+  });
 });

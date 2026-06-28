@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getDatabaseAdapter } from '@/lib/db';
-import { Player, Match, Tournament } from '@/types';
+import { Player, Match, Tournament, HandicapHistoryEntry } from '@/types';
 import { 
   ShieldAlert, 
   ShieldCheck, 
@@ -50,11 +50,13 @@ export default function AnalysisPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [history, setHistory] = useState<HandicapHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter/Sort states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'flagged'>('all');
+  const [showOnlyAfterLastChange, setShowOnlyAfterLastChange] = useState(false);
   const [activeGameType, setActiveGameType] = useState<'all' | '8-Ball' | '9-Ball' | '10-Ball'>('all');
   const [sortField, setSortField] = useState<'winRate' | 'frameWinRate' | 'matches' | 'handicap' | 'mismatchScore'>('mismatchScore');
   const [sortAsc, setSortAsc] = useState(false);
@@ -80,15 +82,17 @@ export default function AnalysisPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [playerList, matchList, tournamentList] = await Promise.all([
+      const [playerList, matchList, tournamentList, handicapHistory] = await Promise.all([
         db.getPlayers(),
         db.getAllMatches(),
-        db.getTournaments()
+        db.getTournaments(),
+        db.getHandicapHistory()
       ]);
       // Filter out bye spacers
       setPlayers(playerList.filter(p => !p.isBye));
       setMatches(matchList);
       setTournaments(tournamentList);
+      setHistory(handicapHistory);
     } catch (err) {
       console.error('Failed to load database data:', err);
     } finally {
@@ -149,10 +153,18 @@ export default function AnalysisPage() {
 
   // Perform statistics calculation for each player
   const calculatePlayerStats = (player: Player): PlayerStats => {
-    const playerMatches = activeMatches.filter(m => 
+    let playerMatches = activeMatches.filter(m => 
       m.status === 'completed' && 
       (m.player1Id === player.id || m.player2Id === player.id)
     );
+
+    if (showOnlyAfterLastChange) {
+      const playerHistory = history.filter(h => h.playerId === player.id);
+      if (playerHistory.length > 0) {
+        const latestChangeTime = Math.max(...playerHistory.map(h => new Date(h.changedAt).getTime()));
+        playerMatches = playerMatches.filter(m => new Date(m.createdAt).getTime() > latestChangeTime);
+      }
+    }
 
     let wins = 0;
     let losses = 0;
@@ -464,7 +476,17 @@ export default function AnalysisPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer select-none bg-slate-900/60 hover:bg-slate-900/90 border border-border/40 px-3.5 py-2.5 rounded-xl transition-all">
+            <input
+              type="checkbox"
+              checked={showOnlyAfterLastChange}
+              onChange={e => setShowOnlyAfterLastChange(e.target.checked)}
+              className="rounded border-slate-700 bg-slate-950 text-primary focus:ring-primary/30 h-3.5 w-3.5 animate-none"
+            />
+            <span>Only After Last Handicap Change</span>
+          </label>
+
           <div className="flex bg-slate-900/60 p-1 rounded-xl border border-border/40 gap-1 text-xs font-bold">
             <button
               onClick={() => setFilterType('all')}
