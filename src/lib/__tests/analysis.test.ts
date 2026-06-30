@@ -3,6 +3,7 @@ import { Player, Match } from '../../types';
 
 interface PlayerStats {
   player: Player;
+  tournamentsPlayed: number;
   totalMatches: number;
   wins: number;
   losses: number;
@@ -53,6 +54,9 @@ function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
     }
   });
 
+  const tournamentIds = new Set(playerMatches.map(m => m.tournamentId));
+  const tournamentsPlayed = tournamentIds.size;
+
   const totalMatches = wins + losses;
   const winRate = totalMatches > 0 ? wins / totalMatches : 0;
 
@@ -85,6 +89,7 @@ function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
 
   return {
     player,
+    tournamentsPlayed,
     totalMatches,
     wins,
     losses,
@@ -323,5 +328,77 @@ describe('Super Admin Handicap Mismatch Analysis Logic', () => {
     const filteredMatches = getFilteredPlayerMatches(player, mockMatches, true, history);
     expect(filteredMatches.length).toBe(1);
     expect(filteredMatches[0].id).toBe('match_after');
+  });
+
+  it('correctly calculates tournamentsPlayed based on unique tournamentIds in matches', () => {
+    const player: Player = {
+      id: 'p_1',
+      name: 'Player 1',
+      skillLevel8: 5,
+      skillLevel9: 5,
+      skillLevel10: 5,
+      createdAt: ''
+    };
+
+    const mockMatches: Match[] = [
+      {
+        id: 'm_1',
+        tournamentId: 't1',
+        roundType: 'knockout',
+        roundNumber: 1,
+        matchNumber: 1,
+        player1Id: 'p_1',
+        player2Id: 'other_p',
+        player1Score: 5,
+        player2Score: 2,
+        player1Target: 5,
+        player2Target: 5,
+        player1SpottedBalls: [],
+        player2SpottedBalls: [],
+        status: 'completed',
+        winnerId: 'p_1',
+        createdAt: ''
+      },
+      {
+        id: 'm_2',
+        tournamentId: 't1',
+        roundType: 'knockout',
+        roundNumber: 2,
+        matchNumber: 1,
+        player1Id: 'p_1',
+        player2Id: 'other_p_2',
+        player1Score: 5,
+        player2Score: 3,
+        player1Target: 5,
+        player2Target: 5,
+        player1SpottedBalls: [],
+        player2SpottedBalls: [],
+        status: 'completed',
+        winnerId: 'p_1',
+        createdAt: ''
+      },
+      {
+        id: 'm_3',
+        tournamentId: 't2',
+        roundType: 'knockout',
+        roundNumber: 1,
+        matchNumber: 1,
+        player1Id: 'p_1',
+        player2Id: 'other_p_3',
+        player1Score: 4,
+        player2Score: 5,
+        player1Target: 5,
+        player2Target: 5,
+        player1SpottedBalls: [],
+        player2SpottedBalls: [],
+        status: 'completed',
+        winnerId: 'other_p_3',
+        createdAt: ''
+      }
+    ];
+
+    const analysis = analyzePlayerStats(player, mockMatches);
+    expect(analysis.totalMatches).toBe(3);
+    expect(analysis.tournamentsPlayed).toBe(2);
   });
 });

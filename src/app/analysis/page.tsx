@@ -27,6 +27,7 @@ import Link from 'next/link';
 
 interface PlayerStats {
   player: Player;
+  tournamentsPlayed: number;
   totalMatches: number;
   wins: number;
   losses: number;
@@ -58,7 +59,7 @@ export default function AnalysisPage() {
   const [filterType, setFilterType] = useState<'all' | 'flagged'>('all');
   const [showOnlyAfterLastChange, setShowOnlyAfterLastChange] = useState(false);
   const [activeGameType, setActiveGameType] = useState<'all' | '8-Ball' | '9-Ball' | '10-Ball'>('all');
-  const [sortField, setSortField] = useState<'winRate' | 'frameWinRate' | 'matches' | 'handicap' | 'mismatchScore'>('mismatchScore');
+  const [sortField, setSortField] = useState<'winRate' | 'frameWinRate' | 'matches' | 'tournaments' | 'handicap' | 'mismatchScore'>('mismatchScore');
   const [sortAsc, setSortAsc] = useState(false);
 
   // In-place edit state
@@ -196,6 +197,9 @@ export default function AnalysisPage() {
       }
     });
 
+    const tournamentIds = new Set(playerMatches.map(m => m.tournamentId));
+    const tournamentsPlayed = tournamentIds.size;
+
     const totalMatches = wins + losses;
     const winRate = totalMatches > 0 ? wins / totalMatches : 0;
     const totalRacks = racksWon + racksLost;
@@ -247,6 +251,7 @@ export default function AnalysisPage() {
 
     return {
       player,
+      tournamentsPlayed,
       totalMatches,
       wins,
       losses,
@@ -280,6 +285,8 @@ export default function AnalysisPage() {
       comparison = a.frameWinRate - b.frameWinRate;
     } else if (sortField === 'matches') {
       comparison = a.totalMatches - b.totalMatches;
+    } else if (sortField === 'tournaments') {
+      comparison = a.tournamentsPlayed - b.tournamentsPlayed;
     } else if (sortField === 'handicap') {
       const avgA = (a.player.skillLevel8 + a.player.skillLevel9 + a.player.skillLevel10) / 3;
       const avgB = (b.player.skillLevel8 + b.player.skillLevel9 + b.player.skillLevel10) / 3;
@@ -290,7 +297,7 @@ export default function AnalysisPage() {
     return sortAsc ? comparison : -comparison;
   });
 
-  const handleSort = (field: 'winRate' | 'frameWinRate' | 'matches' | 'handicap' | 'mismatchScore') => {
+  const handleSort = (field: 'winRate' | 'frameWinRate' | 'matches' | 'tournaments' | 'handicap' | 'mismatchScore') => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
     } else {
@@ -540,6 +547,12 @@ export default function AnalysisPage() {
                       <ArrowUpDown className="h-3.5 w-3.5" />
                     </div>
                   </th>
+                  <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-center" onClick={() => handleSort('tournaments')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Tournaments
+                      <ArrowUpDown className="h-3.5 w-3.5" />
+                    </div>
+                  </th>
                   <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-center" onClick={() => handleSort('matches')}>
                     <div className="flex items-center justify-center gap-1">
                       Matches Played
@@ -595,6 +608,11 @@ export default function AnalysisPage() {
                         <span className="text-[10px] text-muted-foreground font-medium ml-1.5">
                           (Avg: {avgSkill})
                         </span>
+                      </td>
+
+                      {/* Tournaments Played */}
+                      <td className="px-6 py-4 text-center text-slate-300">
+                        <span className="text-sm font-bold">{stat.tournamentsPlayed}</span>
                       </td>
 
                       {/* Matches Count */}
