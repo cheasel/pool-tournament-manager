@@ -113,6 +113,14 @@ export default function TournamentDetailPage() {
   const [activeBidAmount, setActiveBidAmount] = useState(0);
   const [activeSplit, setActiveSplit] = useState(false);
 
+  // Field bidding states
+  const [fieldPlayerIds, setFieldPlayerIds] = useState<string[]>([]);
+  const [fieldBidSold, setFieldBidSold] = useState(false);
+  const [fieldBuyerName, setFieldBuyerName] = useState('');
+  const [fieldBuyerName2, setFieldBuyerName2] = useState('');
+  const [fieldBidAmount, setFieldBidAmount] = useState(10);
+  const [fieldSplit, setFieldSplit] = useState(false);
+
   const db = getDatabaseAdapter();
 
   const [paymentCategory, setPaymentCategory] = useState<'entry' | 'calcuttaBid' | 'payout' | 'calcuttaPayout'>('entry');
@@ -422,6 +430,7 @@ export default function TournamentDetailPage() {
         setShuffledRoster(realPlayers);
         setCurrentRosterIdx(realPlayers.length);
         setAuctionStarted(true);
+        setFieldBidSold(true);
       }
     }
   }, [details]);
@@ -438,6 +447,14 @@ export default function TournamentDetailPage() {
     setActiveBidAmount(details.tournament.calcuttaMinStartBet ?? 10);
     setActiveSplit(false);
     setAuctionStarted(true);
+
+    // Reset field states
+    setFieldPlayerIds([]);
+    setFieldBidSold(false);
+    setFieldBuyerName('');
+    setFieldBuyerName2('');
+    setFieldBidAmount(details.tournament.calcuttaMinStartBet ?? 10);
+    setFieldSplit(false);
     
     // Reset/initialize bidsMap with minimum values
     const minStart = details.tournament.calcuttaMinStartBet ?? 10;
@@ -474,6 +491,62 @@ export default function TournamentDetailPage() {
       setActiveBidAmount(details?.tournament.calcuttaMinStartBet ?? 10);
       setActiveSplit(false);
     }
+  };
+
+  const handlePassToField = () => {
+    if (currentRosterIdx >= shuffledRoster.length) return;
+    const activePlayer = shuffledRoster[currentRosterIdx];
+
+    // Mark as field player
+    setFieldPlayerIds(prev => [...prev, activePlayer.id]);
+
+    // Save bid map for this player as field player
+    setBidsMap(prev => ({
+      ...prev,
+      [activePlayer.id]: {
+        bidAmount: 0,
+        buyerName: 'Field Player',
+        buyerName2: undefined,
+        split: false,
+      },
+    }));
+
+    // Advance index
+    const nextIdx = currentRosterIdx + 1;
+    setCurrentRosterIdx(nextIdx);
+
+    // Initialize state for the next player if there is one
+    if (nextIdx < shuffledRoster.length) {
+      setActiveBuyerName('');
+      setActiveBuyerName2('');
+      setActiveBidAmount(details?.tournament.calcuttaMinStartBet ?? 10);
+      setActiveSplit(false);
+    }
+  };
+
+  const handleFieldBidSold = () => {
+    if (fieldPlayerIds.length === 0) return;
+    
+    // Distribute total bid amount equally (with remainder on the first player)
+    const totalBid = fieldBidAmount;
+    const n = fieldPlayerIds.length;
+    const share = Math.floor(totalBid / n);
+    const remainder = totalBid - (share * n);
+
+    setBidsMap(prev => {
+      const updated = { ...prev };
+      fieldPlayerIds.forEach((pid, idx) => {
+        updated[pid] = {
+          bidAmount: share + (idx === 0 ? remainder : 0),
+          buyerName: fieldBuyerName.trim() || 'Field (Buyer)',
+          buyerName2: fieldBuyerName2.trim() || undefined,
+          split: fieldSplit,
+        };
+      });
+      return updated;
+    });
+
+    setFieldBidSold(true);
   };
 
   const handleStartTournament = async () => {
@@ -1592,14 +1665,24 @@ export default function TournamentDetailPage() {
                                 </div>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={handleBidSold}
-                                className="w-full rounded-xl bg-primary py-3 text-xs font-black text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer uppercase tracking-wider font-extrabold"
-                              >
-                                Sold! (Next Player)
-                                <ChevronRight className="h-4.5 w-4.5" />
-                              </button>
+                              <div className="flex gap-4">
+                                <button
+                                  type="button"
+                                  onClick={handlePassToField}
+                                  className="flex-1 rounded-xl bg-slate-900 border border-border/40 hover:bg-border py-3 text-xs font-bold text-white transition-all cursor-pointer uppercase tracking-wider"
+                                >
+                                  Pass to Field
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={handleBidSold}
+                                  className="flex-2 rounded-xl bg-primary py-3 text-xs font-black text-background hover:bg-primary-hover shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-1 cursor-pointer uppercase tracking-wider font-extrabold"
+                                >
+                                  Sold! (Next Player)
+                                  <ChevronRight className="h-4.5 w-4.5" />
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-4 border border-billiard-orange/20 bg-slate-950/40 shrink-0 text-center animate-fade-in relative overflow-hidden">
@@ -1718,6 +1801,143 @@ export default function TournamentDetailPage() {
                               </div>
                             </div>
                           )}
+                        </div>
+                      ) : (currentRosterIdx === shuffledRoster.length && fieldPlayerIds.length > 0 && !fieldBidSold) ? (
+                        /* Field Bidding Block */
+                        <div className="glass-panel rounded-2xl p-6 shadow-xl space-y-6 border border-amber-500/20 relative overflow-hidden bg-slate-950/40 shrink-0">
+                          <div className="absolute top-0 right-0 -mr-16 -mt-16 h-40 w-40 rounded-full bg-amber-500/15 blur-[45px]" />
+                          
+                          <div className="flex justify-between items-center text-xs font-bold text-muted-foreground border-b border-border/15 pb-2.5">
+                            <span className="text-amber-400 uppercase tracking-wider font-extrabold flex items-center gap-1">
+                              <Users className="h-4 w-4 text-amber-400" />
+                              Bidding on The Field
+                            </span>
+                            <span>{fieldPlayerIds.length} players in field</span>
+                          </div>
+
+                          <div className="bg-slate-900/50 p-4 rounded-xl border border-border/10 space-y-3">
+                            <h4 className="text-xs font-bold text-slate-300 uppercase">Field Players:</h4>
+                            <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto pr-1">
+                              {fieldPlayerIds.map(pid => {
+                                const player = players.find(p => p.id === pid);
+                                return (
+                                  <span key={pid} className="inline-flex items-center text-xs bg-slate-800 text-slate-200 border border-border/40 px-2.5 py-1 rounded-full font-semibold">
+                                    {player?.name || 'Unknown'}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Controls Row */}
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 bg-slate-950/60 p-4 rounded-xl border border-border/15 text-xs">
+                            {/* Buyer Name 1 */}
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                Field Owner / Buyer 1
+                              </label>
+                              <input
+                                type="text"
+                                value={fieldBuyerName}
+                                onChange={e => setFieldBuyerName(e.target.value)}
+                                placeholder="e.g. Scott"
+                                className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-semibold transition-colors"
+                              />
+                            </div>
+
+                            {/* Buyer Name 2 */}
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                Field Owner / Buyer 2 (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={fieldBuyerName2}
+                                onChange={e => setFieldBuyerName2(e.target.value)}
+                                placeholder="e.g. Jane"
+                                className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-semibold transition-colors"
+                              />
+                            </div>
+
+                            {/* Winning Bid */}
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                Field Winning Bid (฿)
+                              </label>
+                              <div className="flex items-center bg-background border border-border/40 rounded-lg px-2 py-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setFieldBidAmount(a => Math.max(0, a - (tournament.calcuttaMinIncrement ?? 5)))}
+                                  className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
+                                >
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={fieldBidAmount}
+                                  onChange={e => setFieldBidAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                                  className="w-full bg-transparent text-center font-black text-white text-sm focus:outline-none px-1"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setFieldBidAmount(a => a + (tournament.calcuttaMinIncrement ?? 5))}
+                                  className="h-7 w-7 rounded bg-slate-900 border border-border/40 hover:bg-border text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shrink-0 font-extrabold"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Split Toggle */}
+                            <div>
+                              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                                Split with Players?
+                              </label>
+                              <select
+                                value={fieldSplit ? 'YES' : 'NO'}
+                                onChange={e => setFieldSplit(e.target.value === 'YES')}
+                                className="w-full rounded-lg bg-background border border-border/40 px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-semibold transition-colors"
+                              >
+                                <option value="NO">NO</option>
+                                <option value="YES">YES</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-4">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Mark the field as Unsold / no buyer, and proceed
+                                setBidsMap(prev => {
+                                  const updated = { ...prev };
+                                  fieldPlayerIds.forEach(pid => {
+                                    updated[pid] = {
+                                      bidAmount: 0,
+                                      buyerName: 'Unsold Field',
+                                      buyerName2: undefined,
+                                      split: false,
+                                    };
+                                  });
+                                  return updated;
+                                });
+                                setFieldBidSold(true);
+                              }}
+                              className="flex-1 rounded-xl bg-slate-900 border border-border/40 hover:bg-border py-3 text-xs font-bold text-white transition-all cursor-pointer uppercase tracking-wider"
+                            >
+                              No Bid (Mark Unsold)
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleFieldBidSold}
+                              className="flex-1 rounded-xl bg-amber-500 py-3 text-xs font-black text-slate-950 hover:bg-amber-600 shadow-lg hover:shadow-amber-500/20 transition-all flex items-center justify-center gap-1 cursor-pointer uppercase tracking-wider font-extrabold"
+                            >
+                              Sell The Field!
+                              <ChevronRight className="h-4.5 w-4.5" />
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         /* Auction Complete Review & Start triggers */
