@@ -15,10 +15,24 @@ interface PlayerStats {
   mismatchScore: number;
   mismatchStatus: 'high' | 'warn' | 'none';
   mismatchReason: string;
+
+  normalWins: number;
+  normalLosses: number;
+  normalWinRate: number;
+  normalRacksWon: number;
+  normalRacksLost: number;
+  normalFrameWinRate: number;
+  
+  highWins: number;
+  highLosses: number;
+  highWinRate: number;
+  highRacksWon: number;
+  highRacksLost: number;
+  highFrameWinRate: number;
 }
 
 // Replicate the exact classification logic from analysis/page.tsx
-function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
+function analyzePlayerStats(player: Player, matches: Match[], tournamentEntryFeesMap: Record<string, number> = {}): PlayerStats {
   const playerMatches = matches.filter(m => 
     m.status === 'completed' && 
     (m.player1Id === player.id || m.player2Id === player.id)
@@ -30,6 +44,16 @@ function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
   let racksLost = 0;
   let breakAndRuns = 0;
   let tableRuns = 0;
+
+  let normalWins = 0;
+  let normalLosses = 0;
+  let normalRacksWon = 0;
+  let normalRacksLost = 0;
+
+  let highWins = 0;
+  let highLosses = 0;
+  let highRacksWon = 0;
+  let highRacksLost = 0;
 
   playerMatches.forEach(m => {
     const isPlayer1 = m.player1Id === player.id;
@@ -51,6 +75,25 @@ function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
     }
     if (stats?.tableRun) {
       tableRuns += typeof stats.tableRun === 'number' ? stats.tableRun : (stats.tableRun ? 1 : 0);
+    }
+
+    const fee = tournamentEntryFeesMap[m.tournamentId] || 0;
+    if (fee >= 1000) {
+      highRacksWon += score;
+      highRacksLost += oppScore;
+      if (m.winnerId === player.id) {
+        highWins++;
+      } else {
+        highLosses++;
+      }
+    } else {
+      normalRacksWon += score;
+      normalRacksLost += oppScore;
+      if (m.winnerId === player.id) {
+        normalWins++;
+      } else {
+        normalLosses++;
+      }
     }
   });
 
@@ -87,6 +130,16 @@ function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
     mismatchReason += `Low handicap (${avgSkill.toFixed(0)}) player scoring ${runsText.join(' and ')}. `;
   }
 
+  const normalTotalMatches = normalWins + normalLosses;
+  const normalWinRate = normalTotalMatches > 0 ? normalWins / normalTotalMatches : 0;
+  const normalTotalRacks = normalRacksWon + normalRacksLost;
+  const normalFrameWinRate = normalTotalRacks > 0 ? normalRacksWon / normalTotalRacks : 0;
+
+  const highTotalMatches = highWins + highLosses;
+  const highWinRate = highTotalMatches > 0 ? highWins / highTotalMatches : 0;
+  const highTotalRacks = highRacksWon + highRacksLost;
+  const highFrameWinRate = highTotalRacks > 0 ? highRacksWon / highTotalRacks : 0;
+
   return {
     player,
     tournamentsPlayed,
@@ -100,7 +153,19 @@ function analyzePlayerStats(player: Player, matches: Match[]): PlayerStats {
     tableRuns,
     mismatchScore: Math.round(mismatchScore),
     mismatchStatus,
-    mismatchReason: mismatchReason || 'No significant mismatch detected.'
+    mismatchReason: mismatchReason || 'No significant mismatch detected.',
+    normalWins,
+    normalLosses,
+    normalWinRate,
+    normalRacksWon,
+    normalRacksLost,
+    normalFrameWinRate,
+    highWins,
+    highLosses,
+    highWinRate,
+    highRacksWon,
+    highRacksLost,
+    highFrameWinRate
   };
 }
 
@@ -400,5 +465,84 @@ describe('Super Admin Handicap Mismatch Analysis Logic', () => {
     const analysis = analyzePlayerStats(player, mockMatches);
     expect(analysis.totalMatches).toBe(3);
     expect(analysis.tournamentsPlayed).toBe(2);
+  });
+
+  it('correctly splits match win% and frame win% into normal and high stakes categories', () => {
+    const player: Player = {
+      id: 'p_1',
+      name: 'Player 1',
+      skillLevel8: 5,
+      skillLevel9: 5,
+      skillLevel10: 5,
+      createdAt: ''
+    };
+
+    const mockMatches: Match[] = [
+      {
+        id: 'm_normal_1',
+        tournamentId: 't_normal',
+        roundType: 'knockout',
+        roundNumber: 1,
+        matchNumber: 1,
+        player1Id: 'p_1',
+        player2Id: 'other_p',
+        player1Score: 5,
+        player2Score: 2,
+        player1Target: 5,
+        player2Target: 5,
+        player1SpottedBalls: [],
+        player2SpottedBalls: [],
+        status: 'completed',
+        winnerId: 'p_1',
+        createdAt: ''
+      },
+      {
+        id: 'm_high_1',
+        tournamentId: 't_high',
+        roundType: 'knockout',
+        roundNumber: 2,
+        matchNumber: 1,
+        player1Id: 'p_1',
+        player2Id: 'other_p_2',
+        player1Score: 2,
+        player2Score: 5,
+        player1Target: 5,
+        player2Target: 5,
+        player1SpottedBalls: [],
+        player2SpottedBalls: [],
+        status: 'completed',
+        winnerId: 'other_p_2',
+        createdAt: ''
+      }
+    ];
+
+    const entryFeesMap = {
+      t_normal: 500,
+      t_high: 2000
+    };
+
+    const analysis = analyzePlayerStats(player, mockMatches, entryFeesMap);
+    
+    // Total stats
+    expect(analysis.totalMatches).toBe(2);
+    expect(analysis.wins).toBe(1);
+    expect(analysis.losses).toBe(1);
+    expect(analysis.winRate).toBe(0.5);
+
+    // Normal stats
+    expect(analysis.normalWins).toBe(1);
+    expect(analysis.normalLosses).toBe(0);
+    expect(analysis.normalWinRate).toBe(1.0);
+    expect(analysis.normalRacksWon).toBe(5);
+    expect(analysis.normalRacksLost).toBe(2);
+    expect(analysis.normalFrameWinRate).toBe(5 / 7);
+
+    // High stakes stats
+    expect(analysis.highWins).toBe(0);
+    expect(analysis.highLosses).toBe(1);
+    expect(analysis.highWinRate).toBe(0.0);
+    expect(analysis.highRacksWon).toBe(2);
+    expect(analysis.highRacksLost).toBe(5);
+    expect(analysis.highFrameWinRate).toBe(2 / 7);
   });
 });

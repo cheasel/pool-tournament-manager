@@ -40,6 +40,20 @@ interface PlayerStats {
   mismatchScore: number; // calculated rating of mismatch severity
   mismatchStatus: 'high' | 'warn' | 'none';
   mismatchReason: string;
+
+  normalWins: number;
+  normalLosses: number;
+  normalWinRate: number;
+  normalRacksWon: number;
+  normalRacksLost: number;
+  normalFrameWinRate: number;
+  
+  highWins: number;
+  highLosses: number;
+  highWinRate: number;
+  highRacksWon: number;
+  highRacksLost: number;
+  highFrameWinRate: number;
 }
 
 export default function AnalysisPage() {
@@ -147,6 +161,12 @@ export default function AnalysisPage() {
     return map;
   }, [tournaments]);
 
+  const tournamentEntryFees = React.useMemo(() => {
+    const map = new Map<string, number>();
+    tournaments.forEach(t => map.set(t.id, t.entryFee || 0));
+    return map;
+  }, [tournaments]);
+
   const activeMatches = React.useMemo(() => {
     if (activeGameType === 'all') return matches;
     return matches.filter(m => tournamentGameTypes.get(m.tournamentId) === activeGameType);
@@ -174,6 +194,16 @@ export default function AnalysisPage() {
     let breakAndRuns = 0;
     let tableRuns = 0;
 
+    let normalWins = 0;
+    let normalLosses = 0;
+    let normalRacksWon = 0;
+    let normalRacksLost = 0;
+
+    let highWins = 0;
+    let highLosses = 0;
+    let highRacksWon = 0;
+    let highRacksLost = 0;
+
     playerMatches.forEach(m => {
       const isPlayer1 = m.player1Id === player.id;
       const score = isPlayer1 ? m.player1Score : m.player2Score;
@@ -195,6 +225,25 @@ export default function AnalysisPage() {
       if (stats?.tableRun) {
         tableRuns += typeof stats.tableRun === 'number' ? stats.tableRun : (stats.tableRun ? 1 : 0);
       }
+
+      const fee = tournamentEntryFees.get(m.tournamentId) || 0;
+      if (fee >= 1000) {
+        highRacksWon += score;
+        highRacksLost += oppScore;
+        if (m.winnerId === player.id) {
+          highWins++;
+        } else {
+          highLosses++;
+        }
+      } else {
+        normalRacksWon += score;
+        normalRacksLost += oppScore;
+        if (m.winnerId === player.id) {
+          normalWins++;
+        } else {
+          normalLosses++;
+        }
+      }
     });
 
     const tournamentIds = new Set(playerMatches.map(m => m.tournamentId));
@@ -204,6 +253,16 @@ export default function AnalysisPage() {
     const winRate = totalMatches > 0 ? wins / totalMatches : 0;
     const totalRacks = racksWon + racksLost;
     const frameWinRate = totalRacks > 0 ? racksWon / totalRacks : 0;
+
+    const normalTotalMatches = normalWins + normalLosses;
+    const normalWinRate = normalTotalMatches > 0 ? normalWins / normalTotalMatches : 0;
+    const normalTotalRacks = normalRacksWon + normalRacksLost;
+    const normalFrameWinRate = normalTotalRacks > 0 ? normalRacksWon / normalTotalRacks : 0;
+
+    const highTotalMatches = highWins + highLosses;
+    const highWinRate = highTotalMatches > 0 ? highWins / highTotalMatches : 0;
+    const highTotalRacks = highRacksWon + highRacksLost;
+    const highFrameWinRate = highTotalRacks > 0 ? highRacksWon / highTotalRacks : 0;
 
     // Evaluate mismatch severity
     let mismatchScore = 0;
@@ -263,7 +322,19 @@ export default function AnalysisPage() {
       tableRuns,
       mismatchScore,
       mismatchStatus,
-      mismatchReason: mismatchReason || 'No significant mismatch detected.'
+      mismatchReason: mismatchReason || 'No significant mismatch detected.',
+      normalWins,
+      normalLosses,
+      normalWinRate,
+      normalRacksWon,
+      normalRacksLost,
+      normalFrameWinRate,
+      highWins,
+      highLosses,
+      highWinRate,
+      highRacksWon,
+      highRacksLost,
+      highFrameWinRate
     };
   };
 
@@ -559,14 +630,14 @@ export default function AnalysisPage() {
                       <ArrowUpDown className="h-3.5 w-3.5" />
                     </div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-center" onClick={() => handleSort('winRate')}>
-                    <div className="flex items-center justify-center gap-1">
+                  <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-left" onClick={() => handleSort('winRate')}>
+                    <div className="flex items-center gap-1">
                       Match Win %
                       <ArrowUpDown className="h-3.5 w-3.5" />
                     </div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-center" onClick={() => handleSort('frameWinRate')}>
-                    <div className="flex items-center justify-center gap-1">
+                  <th scope="col" className="px-6 py-4 cursor-pointer hover:text-white transition-colors text-left" onClick={() => handleSort('frameWinRate')}>
+                    <div className="flex items-center gap-1">
                       Frame Win %
                       <ArrowUpDown className="h-3.5 w-3.5" />
                     </div>
@@ -624,32 +695,53 @@ export default function AnalysisPage() {
                       </td>
 
                       {/* Match Win Rate */}
-                      <td className="px-6 py-4 text-center">
-                        <span className={`text-sm ${
-                          stat.winRate > 0.70 
-                            ? 'text-billiard-red' 
-                            : stat.winRate < 0.30 && stat.totalMatches >= 5
-                              ? 'text-billiard-blue' 
-                              : 'text-slate-300'
-                        }`}>
-                          {(stat.winRate * 100).toFixed(0)}%
-                        </span>
+                      <td className="px-6 py-4 text-xs font-semibold text-slate-300">
+                        <div className="flex flex-col gap-0.5">
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground mr-1">Normal:</span>
+                            {stat.normalWins + stat.normalLosses > 0 ? (
+                              <span>{(stat.normalWinRate * 100).toFixed(0)}% <span className="text-[10px] text-muted-foreground font-normal">({stat.normalWins}W-{stat.normalLosses}L)</span></span>
+                            ) : (
+                              <span className="text-slate-500 font-normal">N/A</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground mr-1">Stakes:</span>
+                            {stat.highWins + stat.highLosses > 0 ? (
+                              <span className="text-amber-400 font-bold">{(stat.highWinRate * 100).toFixed(0)}% <span className="text-[10px] text-amber-500/80 font-normal">({stat.highWins}W-{stat.highLosses}L)</span></span>
+                            ) : (
+                              <span className="text-slate-500 font-normal">N/A</span>
+                            )}
+                          </div>
+                          <div className="border-t border-border/10 pt-0.5 mt-0.5 text-[10px] text-slate-400">
+                            Overall: {(stat.winRate * 100).toFixed(0)}%
+                          </div>
+                        </div>
                       </td>
 
                       {/* Frame Win Rate */}
-                      <td className="px-6 py-4 text-center">
-                        <span className={`text-sm ${
-                          stat.frameWinRate > 0.65 
-                            ? 'text-billiard-red' 
-                            : stat.frameWinRate < 0.35 && stat.totalMatches >= 5
-                              ? 'text-billiard-blue' 
-                              : 'text-slate-300'
-                        }`}>
-                          {(stat.frameWinRate * 100).toFixed(0)}%
-                        </span>
-                        <span className="text-[10px] text-muted-foreground block font-medium">
-                          racks: {stat.racksWon}-{stat.racksLost}
-                        </span>
+                      <td className="px-6 py-4 text-xs font-semibold text-slate-300">
+                        <div className="flex flex-col gap-0.5">
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground mr-1">Normal:</span>
+                            {stat.normalRacksWon + stat.normalRacksLost > 0 ? (
+                              <span>{(stat.normalFrameWinRate * 100).toFixed(0)}% <span className="text-[10px] text-muted-foreground font-normal">({stat.normalRacksWon}-{stat.normalRacksLost})</span></span>
+                            ) : (
+                              <span className="text-slate-500 font-normal">N/A</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-muted-foreground mr-1">Stakes:</span>
+                            {stat.highRacksWon + stat.highRacksLost > 0 ? (
+                              <span className="text-amber-400 font-bold">{(stat.highFrameWinRate * 100).toFixed(0)}% <span className="text-[10px] text-amber-500/80 font-normal">({stat.highRacksWon}-{stat.highRacksLost})</span></span>
+                            ) : (
+                              <span className="text-slate-500 font-normal">N/A</span>
+                            )}
+                          </div>
+                          <div className="border-t border-border/10 pt-0.5 mt-0.5 text-[10px] text-slate-400">
+                            Overall: {(stat.frameWinRate * 100).toFixed(0)}%
+                          </div>
+                        </div>
                       </td>
 
                       {/* runs */}
