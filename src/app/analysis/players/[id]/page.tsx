@@ -46,7 +46,7 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
   }
   
   const [allPlacements, setAllPlacements] = useState<PlacementPoint[]>([]);
-  const [placementLimit, setPlacementLimit] = useState<5 | 10>(5);
+  const [placementLimit, setPlacementLimit] = useState<5 | 10 | 20>(5);
   const [onlyPremiumPlacements, setOnlyPremiumPlacements] = useState(false);
 
   const placements = React.useMemo(() => {
@@ -634,9 +634,9 @@ export default function PlayerVisualAnalysisPage({ params }: { params: Promise<{
               <span>Premium & Above (฿1,000+)</span>
             </label>
 
-            {/* Selector: Limit (5 vs 10) */}
+            {/* Selector: Limit (5 vs 10 vs 20) */}
             <div className="flex items-center bg-slate-900/60 border border-slate-800 rounded-lg p-0.5">
-              {([5, 10] as const).map((num) => (
+              {([5, 10, 20] as const).map((num) => (
                 <button
                   key={num}
                   type="button"
